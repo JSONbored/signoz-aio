@@ -84,6 +84,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - default
+          - host-agent
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -104,6 +110,9 @@ jobs:
       - name: Smoke test
         run: |
           chmod +x scripts/smoke-test.sh
+          if [[ "${{ matrix.mode }}" == "host-agent" ]]; then
+            export ENABLE_HOST_AGENT_SMOKE=1
+          fi
           bash -x ./scripts/smoke-test.sh signoz-aio:ci
 
       - name: Dump smoke test diagnostics
