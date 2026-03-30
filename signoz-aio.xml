@@ -22,6 +22,7 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
 2. Wait for first startup to complete. This image boots multiple internal services, so the first run is heavier than a typical single-service container.&#xD;
 3. Open the WebUI on port 8080.&#xD;
 4. Send telemetry to OTLP gRPC on 4317 or OTLP HTTP on 4318.&#xD;
+5. If you later want host metrics, Docker metrics, container logs, or Prometheus scraping, run a separate host collector and forward that data into SigNoz. This keeps the main SigNoz container simpler and safer.&#xD;
 &#xD;
 [b]Resource Note:[/b] ClickHouse makes SigNoz powerful, but also heavier on RAM, disk, and startup time than lighter AIO apps.</Overview>
   <Category>Monitoring: Tools:</Category>

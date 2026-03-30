@@ -80,6 +80,95 @@ The next step is real Unraid validation before CA submission.
   - two OTLP ingest ports
   - sane advanced defaults for the collector and internal ZooKeeper housekeeping
 
+## Getting Data Into SigNoz
+
+SigNoz is only useful once something is sending telemetry into it. This AIO image gives you a ready OTLP endpoint, but it does not automatically reach out and scrape your entire server by default.
+
+The easiest ingestion paths are:
+
+- instrument applications with OpenTelemetry and send directly to:
+  - `http://YOUR-UNRAID-IP:4317` for OTLP gRPC
+  - `http://YOUR-UNRAID-IP:4318` for OTLP HTTP
+- run a separate OpenTelemetry Collector or Alloy agent on the Unraid host
+- configure that agent to:
+  - scrape Prometheus endpoints
+  - collect Docker container metrics
+  - tail Docker or file-based logs
+  - forward everything into this `signoz-aio` container
+
+Why keep the host agent separate?
+
+- it avoids giving the main SigNoz container broad access to the Docker socket
+- it avoids mounting host `/proc`, `/sys`, and container log directories into the main UI/database image
+- it keeps the AIO install safe and beginner-friendly while still giving power users a clean upgrade path
+
+## Recommended Monitoring Layout For Unraid
+
+```mermaid
+flowchart LR
+    A["Unraid host"] -->|"host metrics"| B["Host collector / agent"]
+    C["Docker containers"] -->|"docker stats + logs"| B
+    D["Apps with OTel SDKs"] -->|"OTLP"| B
+    E["Apps with Prometheus endpoints"] -->|"scrape"| B
+    B -->|"OTLP gRPC / HTTP"| F["signoz-aio"]
+    F --> G["SigNoz UI"]
+    F --> H["ClickHouse + SQLite + ZooKeeper"]
+```
+
+For most users, this is the sweet spot:
+
+- `signoz-aio` stays the central backend and UI
+- one lightweight host collector handles scraping and log collection
+- instrumented apps can either send directly to SigNoz or to the host collector first
+
+## Quick Start Paths
+
+### 1. Instrumented apps
+
+If an app already supports OpenTelemetry, point it at:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://YOUR-UNRAID-IP:4317`
+  for gRPC exporters
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://YOUR-UNRAID-IP:4318`
+  for HTTP exporters
+
+Then verify in SigNoz:
+
+- traces appear in APM / Traces
+- application metrics appear in Metrics Explorer
+- application logs appear in Logs if the app also exports logs
+
+### 2. Prometheus scrape targets
+
+If an app exposes a `/metrics` endpoint, use a host collector to scrape it and forward to SigNoz.
+
+Starter example:
+
+- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+
+### 3. Unraid host + Docker telemetry
+
+If you want host metrics, Docker container metrics, and container logs, run a separate collector on the host with the Docker socket and host mounts.
+
+Starter example:
+
+- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+
+This is the best fit for:
+
+- Unraid CPU, memory, disk, and filesystem metrics
+- Docker container resource metrics
+- Docker stdout/stderr logs
+- forwarding OTLP from local apps through a single on-host agent
+
+## What We Recommend Newcomers Do First
+
+1. Get `signoz-aio` running with defaults.
+2. Verify the UI loads on port `8080`.
+3. Point one app or one collector at OTLP `4317` or `4318`.
+4. Confirm data appears in SigNoz.
+5. Only then expand into Prometheus scraping, host metrics, and container logs.
+
 ## What This AIO Does Not Bundle
 
 This image is self-contained for the SigNoz core stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from your entire Unraid host or every Docker container on your server by default.
@@ -90,6 +179,8 @@ That means you still need to connect senders such as:
 - OpenTelemetry Collector agents
 - Prometheus scrape pipelines
 - log shippers or agent-based host collectors
+
+That is intentional. Bundling host-level scraping into the main SigNoz image would require extra permissions and host mounts that are better handled by an optional collector/agent deployment.
 
 ## Upstream Snapshot
 
@@ -140,6 +231,9 @@ The current `signoz-aio` contract is:
 - [Implementation plan](/tmp/signoz-aio/docs/implementation-plan.md)
 - [Upstream tracking notes](/tmp/signoz-aio/docs/upstream-tracking.md)
 - [Release checklist](/tmp/signoz-aio/docs/release-checklist.md)
+- [Ingestion guide](/tmp/signoz-aio/docs/ingestion-guide.md)
+- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
 
 ## Sources Used For Bootstrap
 
