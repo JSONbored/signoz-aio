@@ -1,19 +1,22 @@
 # Build Status
 
-`signoz-aio` is in the bootstrap phase.
+`signoz-aio` is in the first runnable validation phase.
 
 Current state:
 
 - official upstream Docker architecture researched
 - current upstream image versions identified
-- repo converted from the generic template into a SigNoz-specific planning starter
-- final AIO runtime not implemented yet
+- single-image runtime implemented around:
+  - `signoz`
+  - `signoz-otel-collector`
+  - `clickhouse`
+  - `zookeeper`
+- local `linux/amd64` build passed
+- local smoke test passed, including restart and persistence
 
 Before enabling automation for this repo:
 
-- finish the single-image runtime
-- replace all remaining template behavior in Dockerfile, rootfs, and smoke tests
 - run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-- validate local Docker build and smoke tests
 - set required Actions variables and `SYNC_TOKEN`
 - confirm first GHCR publish and XML sync behavior
+- validate real-world Unraid install behavior

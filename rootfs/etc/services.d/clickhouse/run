@@ -1,0 +1,7 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+ulimit -n 262144 || true
+ulimit -u 65535 || true
+
+exec su -s /bin/bash clickhouse -c 'exec clickhouse-server --config-file=/etc/clickhouse-server/config.xml'

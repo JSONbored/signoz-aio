@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/JSONbored/signoz-aio/issues</Support>
   <Project>https://github.com/JSONbored/signoz-aio</Project>
-  <Overview>SigNoz AIO for Unraid is being designed to bundle the official self-hosted SigNoz stack into a single Unraid-friendly image. Planned exposed ports are 8080 for the UI/API and 4317/4318 for OTLP ingest. This XML is an early draft and the repo is not ready for CA submission yet.</Overview>
+  <Overview>SigNoz AIO for Unraid bundles the official self-hosted SigNoz stack into a single Unraid-friendly image. It includes the SigNoz server, the SigNoz OTEL collector, ClickHouse, and ZooKeeper, with exposed ports for the UI/API on 8080 and OTLP ingest on 4317/4318. This template is ready for first-round Unraid validation before Community Applications submission.</Overview>
   <Category>Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/signoz-aio.xml</TemplateURL>

@@ -1,0 +1,24 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+ENV_FILE="/appdata/config/generated.env"
+if [ -f "${ENV_FILE}" ]; then
+    set -a
+    . "${ENV_FILE}"
+    set +a
+fi
+
+wait_for_clickhouse() {
+    until curl -fsS http://127.0.0.1:8123/ping >/dev/null 2>&1; do
+        sleep 2
+    done
+}
+
+wait_for_clickhouse
+
+export SIGNOZ_ALERTMANAGER_PROVIDER="${SIGNOZ_ALERTMANAGER_PROVIDER:-signoz}"
+export SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN="${SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN:-tcp://127.0.0.1:9000}"
+export SIGNOZ_SQLSTORE_SQLITE_PATH="${SIGNOZ_SQLSTORE_SQLITE_PATH:-/appdata/signoz/signoz.db}"
+
+cd /opt/signoz
+exec ./signoz server

@@ -1,0 +1,9 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+export ALLOW_ANONYMOUS_LOGIN="${ALLOW_ANONYMOUS_LOGIN:-yes}"
+export ZOO_SERVER_ID="${ZOO_SERVER_ID:-1}"
+export ZOO_ENABLE_ADMIN_SERVER="${ZOO_ENABLE_ADMIN_SERVER:-no}"
+
+/opt/bitnami/scripts/zookeeper/setup.sh
+exec /opt/bitnami/scripts/zookeeper/run.sh

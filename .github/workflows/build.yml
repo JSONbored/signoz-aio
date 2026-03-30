@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-template:
+  validate-repo:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,7 +70,7 @@ jobs:
           import os
           import xml.etree.ElementTree as ET
 
-          xml_path = os.environ.get("TEMPLATE_XML") or "template-aio.xml"
+          xml_path = os.environ.get("TEMPLATE_XML") or "signoz-aio.xml"
           ET.parse(xml_path)
           print(f"Parsed XML successfully: {xml_path}")
           PY
@@ -82,7 +82,7 @@ jobs:
 
   smoke-test:
     if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_smoke_test == true) }}
-    needs: validate-template
+    needs: validate-repo
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -99,26 +99,26 @@ jobs:
           context: .
           platforms: linux/amd64
           load: true
-          tags: aio-template:ci
+          tags: signoz-aio:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Smoke test
         run: |
           chmod +x scripts/smoke-test.sh
-          bash -x ./scripts/smoke-test.sh aio-template:ci
+          bash -x ./scripts/smoke-test.sh signoz-aio:ci
 
       - name: Dump smoke test diagnostics
         if: failure()
         run: |
           docker ps -a
-          docker inspect "${CONTAINER_NAME:-aio-template-smoke}" || true
-          docker logs "${CONTAINER_NAME:-aio-template-smoke}" || true
+          docker inspect "${CONTAINER_NAME:-signoz-aio-smoke}" || true
+          docker logs "${CONTAINER_NAME:-signoz-aio-smoke}" || true
 
   publish:
     if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name != 'pull_request' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
     needs:
-      - validate-template
+      - validate-repo
       - smoke-test
     runs-on: ubuntu-latest
     permissions:
@@ -171,7 +171,7 @@ jobs:
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max

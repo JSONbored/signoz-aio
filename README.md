@@ -1,6 +1,6 @@
 # SigNoz AIO For Unraid
 
-`signoz-aio` is an in-progress attempt to package the full self-hosted SigNoz stack into a single Unraid-friendly image and CA template.
+`signoz-aio` packages the full self-hosted SigNoz stack into a single Unraid-friendly image and CA template.
 
 This repo is being built around the current official SigNoz Docker deployment, not a guessed rewrite. The planned AIO image is meant to supervise the services that SigNoz currently expects for a complete small-to-medium self-hosted install:
 
@@ -11,14 +11,17 @@ This repo is being built around the current official SigNoz Docker deployment, n
 
 ## Current Status
 
-This repo is in active bootstrap and architecture work.
+The single-image runtime is now implemented and locally validated.
 
-- official upstream deployment has been researched
-- version pins for the current Docker stack have been identified
-- Unraid-facing ports and persistence layout are being defined
-- the final single-image runtime has not been completed yet
+- the image supervises `signoz`, `signoz-otel-collector`, `clickhouse`, and `zookeeper`
+- local `linux/amd64` build passes
+- local smoke testing passes, including:
+  - first boot
+  - telemetry-store migrations
+  - OTLP listener readiness
+  - restart and persistence
 
-So: this repo is not ready for Community Applications yet, but it is now set up to move in a clean, deliberate direction.
+The next step is real Unraid validation before CA submission.
 
 ## Upstream Snapshot
 
@@ -35,9 +38,9 @@ The official Docker deployment exposes:
 - `4317` for OTLP gRPC ingest
 - `4318` for OTLP HTTP ingest
 
-## Planned Unraid AIO Shape
+## Unraid AIO Shape
 
-The intended `signoz-aio` contract is:
+The current `signoz-aio` contract is:
 
 - one custom image
 - one primary appdata root, likely `/appdata`
@@ -52,6 +55,7 @@ The intended `signoz-aio` contract is:
 - local smoke tests that verify:
   - bootstrap
   - service readiness
+  - OTLP listener availability
   - persistence across restart
   - health endpoint response
 
