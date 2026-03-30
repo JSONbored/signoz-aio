@@ -352,22 +352,22 @@ jobs:
     permissions:
       contents: read
     env:
-      TEMPLATE_XML: ${{ vars.TEMPLATE_XML }}
+      TEMPLATE_XML: ${{ vars.TEMPLATE_XML || 'signoz-aio.xml' }}
       TEMPLATE_ICON_PATH: ${{ vars.TEMPLATE_ICON_PATH || 'assets/app-icon.png' }}
-      TARGET_REPOSITORY: ${{ vars.AWESOME_UNRAID_REPOSITORY }}
-      TARGET_XML_NAME: ${{ vars.AWESOME_UNRAID_XML_NAME }}
-      TARGET_ICON_NAME: ${{ vars.AWESOME_UNRAID_ICON_NAME }}
+      TARGET_REPOSITORY: ${{ vars.AWESOME_UNRAID_REPOSITORY || 'JSONbored/awesome-unraid' }}
+      TARGET_XML_NAME: ${{ vars.AWESOME_UNRAID_XML_NAME || 'signoz-aio.xml' }}
+      TARGET_ICON_NAME: ${{ vars.AWESOME_UNRAID_ICON_NAME || 'signoz.png' }}
     steps:
-      - name: Verify sync token is present
+      - name: Verify sync configuration
         id: token
         env:
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          if [[ -n "${SYNC_TOKEN}" ]]; then
+          if [[ -n "${SYNC_TOKEN}" && -n "${TEMPLATE_XML}" && -n "${TARGET_REPOSITORY}" && -n "${TARGET_XML_NAME}" ]]; then
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
-            echo "SYNC_TOKEN is not configured; skipping sync."
+            echo "Sync is not fully configured; skipping."
           fi
 
       - name: Checkout Source Repository
