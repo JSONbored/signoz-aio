@@ -1,4 +1,4 @@
-name: Build AIO Image
+name: CI / Signoz-AIO
 
 on:
   push:
@@ -8,7 +8,10 @@ on:
       - 'rootfs/**'
       - 'scripts/**'
       - 'upstream.toml'
-      - '.github/workflows/build.yml'
+      - 'renovate.json'
+      - '*.xml'
+      - 'assets/*.png'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main ]
     paths:
@@ -16,7 +19,10 @@ on:
       - 'rootfs/**'
       - 'scripts/**'
       - 'upstream.toml'
-      - '.github/workflows/build.yml'
+      - 'renovate.json'
+      - '*.xml'
+      - 'assets/*.png'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       run_smoke_test:
@@ -40,7 +46,102 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build_related: ${{ steps.filter.outputs.build_related }}
+      template_assets_related: ${{ steps.filter.outputs.template_assets_related }}
+      renovate_related: ${{ steps.filter.outputs.renovate_related }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before || '' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GITHUB_SHA_VALUE: ${{ github.sha }}
+        run: |
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "build_related=true" >> "${GITHUB_OUTPUT}"
+            echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
+            echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            base="${BASE_SHA}"
+            head="${HEAD_SHA}"
+          else
+            base="${BEFORE_SHA}"
+            head="${GITHUB_SHA_VALUE}"
+          fi
+
+          if ! git rev-parse --git-dir >/dev/null 2>&1; then
+            echo "Git metadata is unavailable; treating the workflow as fully impacted."
+            echo "build_related=true" >> "${GITHUB_OUTPUT}"
+            echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
+            echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [[ -z "${base}" || "${base}" =~ ^0+$ ]]; then
+            if ! changed_files="$(git show --pretty='' --name-only "${head}" 2>/dev/null)"; then
+              echo "Unable to inspect commit range; treating the workflow as fully impacted."
+              echo "build_related=true" >> "${GITHUB_OUTPUT}"
+              echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
+              echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          else
+            if ! changed_files="$(git diff --name-only "${base}" "${head}" 2>/dev/null)"; then
+              echo "Unable to diff commit range; treating the workflow as fully impacted."
+              echo "build_related=true" >> "${GITHUB_OUTPUT}"
+              echo "template_assets_related=true" >> "${GITHUB_OUTPUT}"
+              echo "renovate_related=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          fi
+
+          printf 'Changed files:\n%s\n' "${changed_files}"
+
+          build_related=false
+          template_assets_related=false
+          renovate_related=false
+
+          while IFS= read -r path; do
+            [[ -z "${path}" ]] && continue
+            case "${path}" in
+              Dockerfile|upstream.toml|rootfs/*|scripts/*)
+                build_related=true
+                ;;
+              *.xml|assets/*.png)
+                template_assets_related=true
+                ;;
+              renovate.json)
+                renovate_related=true
+                ;;
+              .github/workflows/*)
+                build_related=true
+                renovate_related=true
+                ;;
+            esac
+          done <<< "${changed_files}"
+
+          echo "build_related=${build_related}" >> "${GITHUB_OUTPUT}"
+          echo "template_assets_related=${template_assets_related}" >> "${GITHUB_OUTPUT}"
+          echo "renovate_related=${renovate_related}" >> "${GITHUB_OUTPUT}"
+
   validate-repo:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' || needs.detect-changes.outputs.renovate_related == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,6 +156,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Validate shell scripts
+        if: ${{ needs.detect-changes.outputs.build_related == 'true' }}
         run: |
           bash -n scripts/smoke-test.sh
           bash -n scripts/validate-derived-repo.sh
@@ -63,24 +165,79 @@ jobs:
           find rootfs -type f -path '*/run' -print0 | xargs -0 -n1 bash -n
 
       - name: Validate XML
+        if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' }}
         run: |
           python3 - <<'PY'
           import os
           import xml.etree.ElementTree as ET
-
           xml_path = os.environ.get("TEMPLATE_XML") or "signoz-aio.xml"
           ET.parse(xml_path)
           print(f"Parsed XML successfully: {xml_path}")
           PY
 
       - name: Validate derived repo placeholders
+        if: ${{ needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.template_assets_related == 'true' }}
         run: |
           chmod +x scripts/validate-derived-repo.sh
           ./scripts/validate-derived-repo.sh .
 
+      - name: Validate Renovate config
+        if: ${{ needs.detect-changes.outputs.renovate_related == 'true' }}
+        run: npx --yes --package renovate renovate-config-validator renovate.json
+
+  pinned-actions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Enforce pinned action SHAs
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          workflow_dir = pathlib.Path(".github/workflows")
+          pattern = re.compile(r"^\s*uses:\s*([^@\s]+)@([^\s#]+)")
+          sha_pattern = re.compile(r"^[0-9a-f]{40}$")
+          failures = []
+
+          for path in sorted(workflow_dir.glob("*.yml")):
+              for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+                  match = pattern.match(line)
+                  if not match:
+                      continue
+                  target, ref = match.groups()
+                  if target.startswith("./"):
+                      continue
+                  if not sha_pattern.fullmatch(ref):
+                      failures.append(f"{path}:{lineno}: action is not pinned to a full SHA -> {line.strip()}")
+
+          if failures:
+              print("\n".join(failures), file=sys.stderr)
+              sys.exit(1)
+          print("All workflow actions are pinned to full commit SHAs.")
+          PY
+
+  dependency-review:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Dependency review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+
   smoke-test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smoke_test == true }}
-    needs: validate-repo
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_smoke_test == true) }}
+    needs:
+      - detect-changes
+      - validate-repo
+      - pinned-actions
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,9 +280,11 @@ jobs:
           docker logs "${CONTAINER_NAME:-signoz-aio-smoke}" || true
 
   publish:
-    if: ${{ github.event_name != 'pull_request' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
+    if: ${{ needs.detect-changes.outputs.build_related == 'true' && github.event_name != 'pull_request' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
     needs:
+      - detect-changes
       - validate-repo
+      - pinned-actions
       - smoke-test
     runs-on: ubuntu-latest
     permissions:
@@ -182,3 +341,60 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.prep.outputs.tags }}
+
+  sync-awesome-unraid:
+    if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs:
+      - detect-changes
+      - validate-repo
+      - pinned-actions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TEMPLATE_XML: ${{ vars.TEMPLATE_XML }}
+      TEMPLATE_ICON_PATH: ${{ vars.TEMPLATE_ICON_PATH || 'assets/app-icon.png' }}
+      TARGET_REPOSITORY: ${{ vars.AWESOME_UNRAID_REPOSITORY }}
+      TARGET_XML_NAME: ${{ vars.AWESOME_UNRAID_XML_NAME }}
+      TARGET_ICON_NAME: ${{ vars.AWESOME_UNRAID_ICON_NAME }}
+    steps:
+      - name: Verify sync token is present
+        id: token
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [[ -n "${SYNC_TOKEN}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "SYNC_TOKEN is not configured; skipping sync."
+          fi
+
+      - name: Checkout Source Repository
+        if: ${{ steps.token.outputs.enabled == 'true' }}
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Checkout Target Repository
+        if: ${{ steps.token.outputs.enabled == 'true' }}
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: ${{ env.TARGET_REPOSITORY }}
+          token: ${{ secrets.SYNC_TOKEN }}
+          path: target-repo
+
+      - name: Copy and Commit Template
+        if: ${{ steps.token.outputs.enabled == 'true' }}
+        run: |
+          cp "${TEMPLATE_XML}" "target-repo/${TARGET_XML_NAME}"
+          mkdir -p target-repo/icons
+          if [ -f "${TEMPLATE_ICON_PATH}" ]; then
+            cp "${TEMPLATE_ICON_PATH}" "target-repo/icons/${TARGET_ICON_NAME}"
+          fi
+          cd target-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${TARGET_XML_NAME}"
+          if [ -f "icons/${TARGET_ICON_NAME}" ]; then
+            git add "icons/${TARGET_ICON_NAME}"
+          fi
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-sync AIO template assets" && git push)
