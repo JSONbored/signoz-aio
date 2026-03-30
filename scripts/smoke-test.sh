@@ -5,7 +5,7 @@ IMAGE_TAG="${1:-signoz-aio:test}"
 CONTAINER_NAME="${CONTAINER_NAME:-signoz-aio-smoke}"
 HOST_PORT="${HOST_PORT:-18080}"
 CONTAINER_PORT="${CONTAINER_PORT:-8080}"
-HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:${HOST_PORT}/api/v1/health}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:${HOST_PORT}/api/v2/readyz}"
 READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-600}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-60}"
 KEEP_SMOKE_ARTIFACTS="${KEEP_SMOKE_ARTIFACTS:-0}"
@@ -78,6 +78,12 @@ while (( SECONDS < ready_deadline )); do
     sleep 2
 done
 
+if ! curl -fsS "${HEALTHCHECK_URL}" >/dev/null 2>&1; then
+    echo "SigNoz did not become ready in time." >&2
+    docker logs "${CONTAINER_NAME}" >&2 || true
+    exit 1
+fi
+
 wait_for_container_http() {
     local url="$1"
     local deadline="$2"
@@ -120,6 +126,12 @@ while (( SECONDS < http_deadline )); do
     sleep 2
 done
 
+if ! curl -fsS "${HEALTHCHECK_URL}" >/dev/null 2>&1; then
+    echo "SigNoz readiness endpoint did not stay healthy during the smoke window." >&2
+    docker logs "${CONTAINER_NAME}" >&2 || true
+    exit 1
+fi
+
 curl -fsS "${HEALTHCHECK_URL}" >/dev/null
 docker exec "${CONTAINER_NAME}" test -f /appdata/config/generated.env
 docker exec "${CONTAINER_NAME}" test -f /appdata/signoz/signoz.db
@@ -146,6 +158,12 @@ while (( SECONDS < ready_deadline )); do
     fi
     sleep 2
 done
+
+if ! curl -fsS "${HEALTHCHECK_URL}" >/dev/null 2>&1; then
+    echo "SigNoz did not become ready again after restart." >&2
+    docker logs "${CONTAINER_NAME}" >&2 || true
+    exit 1
+fi
 
 curl -fsS "${HEALTHCHECK_URL}" >/dev/null
 docker exec "${CONTAINER_NAME}" test -f /appdata/signoz/signoz.db

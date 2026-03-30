@@ -11,7 +11,7 @@ wait_for_clickhouse() {
 }
 
 wait_for_signoz() {
-    until curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; do
+    until curl -fsS http://127.0.0.1:8080/api/v2/readyz >/dev/null 2>&1; do
         sleep 2
     done
 }
