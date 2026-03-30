@@ -28,7 +28,7 @@ on:
       run_smoke_test:
         description: "Run the smoke-test job"
         required: false
-        default: true
+        default: false
         type: boolean
       publish_image:
         description: "Publish image tags from the current ref"
