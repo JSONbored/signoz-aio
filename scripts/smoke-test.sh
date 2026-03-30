@@ -23,7 +23,14 @@ cleanup() {
         exit "${exit_code}"
     fi
     docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-    rm -rf "${TMP_APPDATA}"
+    if [[ -d "${TMP_APPDATA}" ]]; then
+        docker run --rm \
+            -v "${TMP_APPDATA}:/cleanup" \
+            --entrypoint bash \
+            "${IMAGE_TAG}" \
+            -lc 'rm -rf /cleanup/* /cleanup/.[!.]* /cleanup/..?* 2>/dev/null || true' >/dev/null 2>&1 || true
+        rmdir "${TMP_APPDATA}" >/dev/null 2>&1 || rm -rf "${TMP_APPDATA}" >/dev/null 2>&1 || true
+    fi
     exit "${exit_code}"
 }
 trap cleanup EXIT
