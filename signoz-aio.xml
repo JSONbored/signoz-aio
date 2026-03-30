@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>signoz-aio</Name>
+  <Repository>ghcr.io/jsonbored/signoz-aio:latest</Repository>
+  <Registry>https://ghcr.io/jsonbored/signoz-aio</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/JSONbored/signoz-aio/issues</Support>
+  <Project>https://github.com/JSONbored/signoz-aio</Project>
+  <Overview>SigNoz AIO for Unraid is being designed to bundle the official self-hosted SigNoz stack into a single Unraid-friendly image. Planned exposed ports are 8080 for the UI/API and 4317/4318 for OTLP ingest. This XML is an early draft and the repo is not ready for CA submission yet.</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8080]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/signoz-aio.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description/>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8080</HostPort>
+        <ContainerPort>8080</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>4317</HostPort>
+        <ContainerPort>4317</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>4318</HostPort>
+        <ContainerPort>4318</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/signoz-aio</HostDir>
+      <ContainerDir>/appdata</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Name>TZ</Name>
+      <Value>UTC</Value>
+    </Variable>
+  </Environment>
+
+  <Config Name="SigNoz UI Port" Target="8080" Default="8080" Mode="tcp" Description="SigNoz UI and API port." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="OTLP gRPC Port" Target="4317" Default="4317" Mode="tcp" Description="OTLP gRPC ingest port for telemetry senders." Type="Port" Display="always" Required="true" Mask="false">4317</Config>
+  <Config Name="OTLP HTTP Port" Target="4318" Default="4318" Mode="tcp" Description="OTLP HTTP ingest port for telemetry senders." Type="Port" Display="always" Required="true" Mask="false">4318</Config>
+  <Config Name="AppData" Target="/appdata" Default="/mnt/user/appdata/signoz-aio" Mode="rw" Description="Persistent storage for ClickHouse, ZooKeeper, SigNoz state, and related runtime data." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/signoz-aio</Config>
+  <Config Name="Timezone" Target="TZ" Default="UTC" Mode="" Description="Container timezone." Type="Variable" Display="advanced" Required="false" Mask="false">UTC</Config>
+</Container>

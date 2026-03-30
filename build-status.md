@@ -1,13 +1,19 @@
 # Build Status
 
-This repo is a template starter.
+`signoz-aio` is in the bootstrap phase.
 
-Before enabling automation for a derived repo:
+Current state:
 
-- replace all placeholder values
+- official upstream Docker architecture researched
+- current upstream image versions identified
+- repo converted from the generic template into a SigNoz-specific planning starter
+- final AIO runtime not implemented yet
+
+Before enabling automation for this repo:
+
+- finish the single-image runtime
+- replace all remaining template behavior in Dockerfile, rootfs, and smoke tests
 - run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-- verify the smoke test matches the actual container behavior
-- set the required Actions variables and `SYNC_TOKEN`
-- install Renovate for ongoing updates
-- configure upstream monitoring
-- confirm GHCR package visibility after first publish
+- validate local Docker build and smoke tests
+- set required Actions variables and `SYNC_TOKEN`
+- confirm first GHCR publish and XML sync behavior

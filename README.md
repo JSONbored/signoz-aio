@@ -1,101 +1,79 @@
-# Unraid AIO Template
+# SigNoz AIO For Unraid
 
-A hardened starter for future `*-aio` repositories: one public repo per app, one companion GHCR image, one Unraid CA XML, and one beginner-first experience that still leaves room for power-user overrides.
+`signoz-aio` is an in-progress attempt to package the full self-hosted SigNoz stack into a single Unraid-friendly image and CA template.
 
-This template is opinionated on purpose. It is built for repos that should be:
+This repo is being built around the current official SigNoz Docker deployment, not a guessed rewrite. The planned AIO image is meant to supervise the services that SigNoz currently expects for a complete small-to-medium self-hosted install:
 
-- easy for newcomers to install
-- honest about what is embedded versus external
-- reproducible in CI before publishing `latest`
-- cleanly syncable into `awesome-unraid`
+- `signoz`
+- `signoz-otel-collector`
+- `clickhouse`
+- `zookeeper`
 
-## What This Template Ships With
+## Current Status
 
-- starter [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile) for wrapping an upstream image with `s6-overlay`
-- starter CA XML at [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- reusable smoke test at [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- derived-repo guardrail script at [`scripts/validate-derived-repo.sh`](/tmp/unraid-aio-template/scripts/validate-derived-repo.sh)
-- upstream monitor scaffold at [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
-- GitHub Actions for validation, smoke-test, GHCR publish, security checks, and optional `awesome-unraid` sync
-- starter docs, changelog, funding, issue templates, and security policy
-- public repo checklists under [`docs/`](/tmp/unraid-aio-template/docs)
+This repo is in active bootstrap and architecture work.
 
-## Design Principles
+- official upstream deployment has been researched
+- version pins for the current Docker stack have been identified
+- Unraid-facing ports and persistence layout are being defined
+- the final single-image runtime has not been completed yet
 
-- single-container first when it is realistic and not misleading
-- safe defaults for beginners, advanced knobs for power users
-- generated first-run secrets only when the app truly needs them
-- no publish until placeholders are gone and smoke tests pass
-- pinned workflow action SHAs and Renovate-managed dependency updates
-- stable-only upstream tracking with PR-first updates
-- update automation opens PRs, but merge decisions stay manual
-- public repos stay public-facing and product-facing only
+So: this repo is not ready for Community Applications yet, but it is now set up to move in a clean, deliberate direction.
 
-## Recommended Workflow
+## Upstream Snapshot
 
-1. Create a new private repo from this template.
-2. Rename `template-aio.xml` to the final app slug, for example `myapp-aio.xml`.
-3. Replace placeholders in the Dockerfile, XML, rootfs scripts, smoke test, README, and funding file.
-4. Replace [`assets/app-icon.png`](/tmp/unraid-aio-template/assets/app-icon.png) with the real icon.
-5. Follow [`docs/customization-guide.md`](/tmp/unraid-aio-template/docs/customization-guide.md).
-6. Follow [`docs/repo-settings.md`](/tmp/unraid-aio-template/docs/repo-settings.md).
-7. Keep `ENABLE_AIO_AUTOMATION` unset until the derived repo passes local validation.
-8. When ready, set `ENABLE_AIO_AUTOMATION=true` and let CI publish and sync.
-9. Install the Renovate GitHub App for the derived repo so pinned actions and Docker dependencies stay current.
-10. Configure [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml) so the repo can monitor the wrapped upstream app.
+Based on the official `SigNoz/signoz` Docker deployment checked on March 29, 2026, the upstream stack currently pins:
 
-## Required Actions Variables
+- `signoz/signoz:v0.117.1`
+- `signoz/signoz-otel-collector:v0.144.2`
+- `clickhouse/clickhouse-server:25.5.6`
+- `signoz/zookeeper:3.7.1`
 
-Set these in `Settings -> Secrets and variables -> Actions -> Variables`.
+The official Docker deployment exposes:
 
-- `ENABLE_AIO_AUTOMATION=true`
-- `TEMPLATE_XML=yourapp-aio.xml`
-- `AWESOME_UNRAID_REPOSITORY=JSONbored/awesome-unraid`
-- `AWESOME_UNRAID_XML_NAME=yourapp-aio.xml`
-- `AWESOME_UNRAID_ICON_NAME=yourapp.png`
+- `8080` for the SigNoz UI and API
+- `4317` for OTLP gRPC ingest
+- `4318` for OTLP HTTP ingest
 
-Optional:
+## Planned Unraid AIO Shape
 
-- `IMAGE_NAME_OVERRIDE=jsonbored/yourapp-aio`
-- `TEMPLATE_ICON_PATH=assets/app-icon.png`
+The intended `signoz-aio` contract is:
 
-## Required Actions Secret
+- one custom image
+- one primary appdata root, likely `/appdata`
+- persisted internal data for:
+  - ClickHouse
+  - ZooKeeper
+  - SigNoz SQLite/config state
+- exposed ports for:
+  - `8080`
+  - `4317`
+  - `4318`
+- local smoke tests that verify:
+  - bootstrap
+  - service readiness
+  - persistence across restart
+  - health endpoint response
 
-- `SYNC_TOKEN`
-  - fine-grained PAT
-  - repository access: `JSONbored/awesome-unraid`
-  - permission: `Contents: Read and write`
+## Important Design Constraints
 
-## Files To Customize First
+- this should mirror official SigNoz behavior closely enough to remain maintainable
+- it should be honest about embedded services and storage cost
+- it should prefer stable upstream versions and PR-first updates
+- it should be beginner-safe for Unraid without hiding important observability tradeoffs
 
-- [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile)
-- [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- [`rootfs/etc/cont-init.d/01-bootstrap.sh`](/tmp/unraid-aio-template/rootfs/etc/cont-init.d/01-bootstrap.sh)
-- [`rootfs/etc/services.d/app/run`](/tmp/unraid-aio-template/rootfs/etc/services.d/app/run)
-- [`README.md`](/tmp/unraid-aio-template/README.md)
-- [`.github/FUNDING.yml`](/tmp/unraid-aio-template/.github/FUNDING.yml)
-- [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
+## Key Docs
 
-## Validation Flow
+- [Implementation plan](/tmp/signoz-aio/docs/implementation-plan.md)
+- [Upstream tracking notes](/tmp/signoz-aio/docs/upstream-tracking.md)
+- [Release checklist](/tmp/signoz-aio/docs/release-checklist.md)
 
-Derived repos created from this template should follow this order:
+## Sources Used For Bootstrap
 
-1. local placeholder cleanup
-2. `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-3. local image build
-4. local smoke test
-5. enable automation
-6. CI validation and publish
-7. `awesome-unraid` sync
-8. real Unraid install validation
-
-Use [`docs/release-checklist.md`](/tmp/unraid-aio-template/docs/release-checklist.md) before making a derived repo public or submitting it to CA.
-
-## Upstream Tracking
-
-Use [`docs/upstream-tracking.md`](/tmp/unraid-aio-template/docs/upstream-tracking.md) to wire the derived repo to the stable upstream app it wraps.
+- [SigNoz self-host Docker docs](https://signoz.io/docs/install/docker/)
+- [SigNoz deployment README](https://github.com/SigNoz/signoz/tree/main/deploy)
+- [SigNoz single-binary consolidation issue](https://github.com/SigNoz/signoz/issues/7309)
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=JSONbored/unraid-aio-template&type=date&legend=top-left)](https://www.star-history.com/#JSONbored/unraid-aio-template&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=JSONbored/signoz-aio&type=date&legend=top-left)](https://www.star-history.com/#JSONbored/signoz-aio&Date)
