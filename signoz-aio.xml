@@ -27,8 +27,8 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
 [b]Resource Note:[/b] ClickHouse makes SigNoz powerful, but also heavier on RAM, disk, and startup time than lighter AIO apps.</Overview>
   <Category>Monitoring: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/signoz-aio.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/assets/app-icon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
