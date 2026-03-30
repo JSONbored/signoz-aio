@@ -20,16 +20,17 @@ These are the main entry points for your applications and any external collector
 For most Unraid users, the cleanest design is:
 
 1. run `signoz-aio` as the central SigNoz backend
-2. run a separate host collector if you want:
+2. optionally enable the built-in local host agent if you want this same Unraid machine to feed host metrics, Docker metrics, and Docker logs into SigNoz
+3. run a separate host collector only if you want:
    - host metrics
    - Docker container metrics
    - Docker container logs
    - Prometheus scraping
-3. point instrumented apps at either:
+4. point instrumented apps at either:
    - `signoz-aio` directly, or
    - the host collector, which then forwards to `signoz-aio`
 
-This keeps the main SigNoz container simple and avoids giving it broad host-level permissions.
+The built-in local host agent is the easiest one-box option. A separate host collector is still the better fit for remote systems or users who want stricter separation.
 
 ## Option 1: Send OTLP Directly From Applications
 
@@ -66,7 +67,7 @@ If you already have exporters on your Unraid box, this is usually the cleanest f
 
 ## Option 3: Collect Docker Host Metrics And Logs
 
-Use a host collector with:
+Use the built-in local host agent or a separate host collector with:
 
 - `hostmetrics`
 - `docker_stats`
@@ -94,7 +95,7 @@ That collector then forwards everything to:
 
 - `YOUR-UNRAID-IP:4317`
 
-This keeps those privileged host mounts out of the main `signoz-aio` container.
+With the built-in host agent mode, those mounts are attached to the main container only when you explicitly enable that feature in the template.
 
 ## Option 4: Combine Both
 
@@ -108,16 +109,14 @@ That combination works well with `signoz-aio`. SigNoz becomes the backend, while
 
 ## What We Intentionally Do Not Pre-Bundle
 
-This repo does not currently pre-bundle a host-level scraping agent into the main SigNoz image.
+This repo now supports an optional built-in local host agent mode for the same Unraid machine.
 
-Reasons:
+We still recommend a separate companion agent for:
 
-- it would require broader host access
-- it would complicate the main Unraid CA template
-- it would make troubleshooting harder for beginners
-- it mixes backend/database concerns with host-collection concerns
-
-If you want a one-click host collector later, the cleaner path is to create a separate optional template or companion repo rather than overloading the main SigNoz container.
+- remote hosts
+- stricter privilege separation
+- more advanced collector customization
+- environments where you do not want Docker socket and host mounts attached to the main SigNoz container
 
 ## Suggested Future UX
 
@@ -125,11 +124,11 @@ The most newcomer-friendly long-term setup is likely:
 
 1. `signoz-aio`
    - backend, UI, ClickHouse, internal collector, persistence
+   - optional built-in local host agent for the same Unraid machine
 2. optional `signoz-agent` or `signoz-collector`
-   - host metrics
-   - Docker metrics
-   - Docker logs
-   - Prometheus scraping
+   - remote hosts
+   - stricter separation
+   - more advanced edge collection
 
 That split keeps the main CA template simple while still giving advanced users a clean and well-documented expansion path.
 

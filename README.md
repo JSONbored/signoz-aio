@@ -106,11 +106,11 @@ Why keep the host agent separate?
 
 ```mermaid
 flowchart LR
-    A["Unraid host"] -->|"host metrics"| B["Host collector / agent"]
+    A["Unraid host"] -->|"host metrics"| B["Optional built-in host agent"]
     C["Docker containers"] -->|"docker stats + logs"| B
-    D["Apps with OTel SDKs"] -->|"OTLP"| B
-    E["Apps with Prometheus endpoints"] -->|"scrape"| B
-    B -->|"OTLP gRPC / HTTP"| F["signoz-aio"]
+    D["Apps with OTel SDKs"] -->|"direct OTLP or via agent"| B
+    E["Apps with Prometheus endpoints"] -->|"optional scrape targets"| B
+    B -->|"local OTLP"| F["SigNoz internal collector"]
     F --> G["SigNoz UI"]
     F --> H["ClickHouse + SQLite + ZooKeeper"]
 ```
@@ -118,8 +118,10 @@ flowchart LR
 For most users, this is the sweet spot:
 
 - `signoz-aio` stays the central backend and UI
-- one lightweight host collector handles scraping and log collection
-- instrumented apps can either send directly to SigNoz or to the host collector first
+- the optional built-in local host agent can handle host collection on the same Unraid machine
+- instrumented apps can either send directly to SigNoz or rely on the local host agent for extra collection
+
+If you want to monitor other hosts later, a separate `signoz-agent` template still makes sense.
 
 ## Quick Start Paths
 
@@ -148,18 +150,24 @@ Starter example:
 
 ### 3. Unraid host + Docker telemetry
 
-If you want host metrics, Docker container metrics, and container logs, run a separate collector on the host with the Docker socket and host mounts.
+If you want host metrics, Docker container metrics, and container logs from the same Unraid machine, enable the built-in local host agent in the template.
 
 Starter example:
 
 - [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
 
-This is the best fit for:
+The built-in host agent is auto-generated from the mounts and variables you provide. With the default Unraid paths, it can automatically enable:
 
 - Unraid CPU, memory, disk, and filesystem metrics
 - Docker container resource metrics
 - Docker stdout/stderr logs
-- forwarding OTLP from local apps through a single on-host agent
+- optional Prometheus scrape targets you define
+
+This is the best fit for users who want:
+
+- one main AIO install
+- minimal extra setup
+- local Unraid and Docker observability without a second template
 
 ## What We Recommend Newcomers Do First
 
@@ -180,7 +188,7 @@ That means you still need to connect senders such as:
 - Prometheus scrape pipelines
 - log shippers or agent-based host collectors
 
-That is intentional. Bundling host-level scraping into the main SigNoz image would require extra permissions and host mounts that are better handled by an optional collector/agent deployment.
+That is only partly true now. This repo can also run an optional built-in local host agent for the same Unraid machine, but it still does not magically monitor remote systems by itself.
 
 ## Upstream Snapshot
 
