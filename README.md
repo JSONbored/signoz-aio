@@ -26,6 +26,26 @@ The image includes all of the stateful pieces needed for a self-contained SigNoz
 
 The image does not require any separate Postgres, TimescaleDB, or Redis sidecars. SigNoz's long-term telemetry data lives in ClickHouse, while SigNoz's app/config metadata in this AIO image lives in SQLite.
 
+## Advanced Database Options
+
+The default install is fully self-contained and uses:
+
+- SQLite for SigNoz metadata
+- bundled ClickHouse for telemetry storage
+- bundled ZooKeeper for ClickHouse coordination
+
+For power users, the advanced app settings also support:
+
+- external PostgreSQL for SigNoz metadata
+- root user provisioning through official SigNoz environment variables
+- external ClickHouse endpoints for advanced deployments
+
+Important limitation:
+
+- PostgreSQL can replace SQLite for metadata
+- PostgreSQL does not replace ClickHouse for traces, metrics, and logs
+- if you move to external ClickHouse, you are moving into a more advanced deployment model and should already understand your ClickHouse and ZooKeeper topology
+
 ## Architecture
 
 ```mermaid

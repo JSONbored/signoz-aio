@@ -53,24 +53,24 @@ extensions:
     endpoint: 0.0.0.0:1777
 exporters:
   clickhousetraces:
-    datasource: tcp://127.0.0.1:9000/signoz_traces
+    datasource: ${env:SIGNOZ_CLICKHOUSE_TRACES_DSN}
     low_cardinal_exception_grouping: ${env:LOW_CARDINAL_EXCEPTION_GROUPING}
     use_new_schema: true
   signozclickhousemetrics:
-    dsn: tcp://127.0.0.1:9000/signoz_metrics
+    dsn: ${env:SIGNOZ_CLICKHOUSE_METRICS_DSN}
   clickhouselogsexporter:
-    dsn: tcp://127.0.0.1:9000/signoz_logs
+    dsn: ${env:SIGNOZ_CLICKHOUSE_LOGS_DSN}
     timeout: 10s
     use_new_schema: true
   signozclickhousemeter:
-    dsn: tcp://127.0.0.1:9000/signoz_meter
+    dsn: ${env:SIGNOZ_CLICKHOUSE_METER_DSN}
     timeout: 45s
     sending_queue:
       enabled: false
   metadataexporter:
     cache:
       provider: in_memory
-    dsn: tcp://127.0.0.1:9000/signoz_metadata
+    dsn: ${env:SIGNOZ_CLICKHOUSE_METADATA_DSN}
     enabled: true
     timeout: 45s
 service:
