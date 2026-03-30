@@ -1,0 +1,55 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+MIGRATION_MARKER="/appdata/.telemetrystore-migrations-complete"
+
+wait_for_clickhouse() {
+    local healthcheck_url="${SIGNOZ_CLICKHOUSE_HEALTHCHECK_URL:-http://127.0.0.1:8123/ping}"
+    until curl -fsS "${healthcheck_url}" >/dev/null 2>&1; do
+        sleep 2
+    done
+}
+
+wait_for_signoz() {
+    until curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; do
+        sleep 2
+    done
+}
+
+COLLECTOR_BIN="/opt/signoz-otel-collector/signoz-otel-collector"
+COLLECTOR_CONFIG="/opt/signoz-aio/config/otel-collector-config.yaml"
+
+CLICKHOUSE_DSN="${SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN:-${SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN:-tcp://127.0.0.1:9000}}"
+CLICKHOUSE_CLUSTER="${SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER:-cluster}"
+CLICKHOUSE_REPLICATION="${SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION:-false}"
+COLLECTOR_TIMEOUT="${SIGNOZ_OTEL_COLLECTOR_TIMEOUT:-10m}"
+OTEL_RESOURCE_ATTRIBUTES_VALUE="${OTEL_RESOURCE_ATTRIBUTES:-host.name=signoz-host,os.type=linux}"
+LOW_CARDINAL_EXCEPTION_GROUPING_VALUE="${LOW_CARDINAL_EXCEPTION_GROUPING:-false}"
+
+export SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN="${CLICKHOUSE_DSN}"
+export SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER="${CLICKHOUSE_CLUSTER}"
+export SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION="${CLICKHOUSE_REPLICATION}"
+export SIGNOZ_OTEL_COLLECTOR_TIMEOUT="${COLLECTOR_TIMEOUT}"
+export OTEL_RESOURCE_ATTRIBUTES="${OTEL_RESOURCE_ATTRIBUTES_VALUE}"
+export LOW_CARDINAL_EXCEPTION_GROUPING="${LOW_CARDINAL_EXCEPTION_GROUPING_VALUE}"
+export SIGNOZ_CLICKHOUSE_TRACES_DSN="${SIGNOZ_CLICKHOUSE_TRACES_DSN:-${CLICKHOUSE_DSN}/signoz_traces}"
+export SIGNOZ_CLICKHOUSE_METRICS_DSN="${SIGNOZ_CLICKHOUSE_METRICS_DSN:-${CLICKHOUSE_DSN}/signoz_metrics}"
+export SIGNOZ_CLICKHOUSE_LOGS_DSN="${SIGNOZ_CLICKHOUSE_LOGS_DSN:-${CLICKHOUSE_DSN}/signoz_logs}"
+export SIGNOZ_CLICKHOUSE_METER_DSN="${SIGNOZ_CLICKHOUSE_METER_DSN:-${CLICKHOUSE_DSN}/signoz_meter}"
+export SIGNOZ_CLICKHOUSE_METADATA_DSN="${SIGNOZ_CLICKHOUSE_METADATA_DSN:-${CLICKHOUSE_DSN}/signoz_metadata}"
+
+wait_for_clickhouse
+
+if [ ! -f "${MIGRATION_MARKER}" ]; then
+    "${COLLECTOR_BIN}" migrate bootstrap
+    "${COLLECTOR_BIN}" migrate sync up
+    "${COLLECTOR_BIN}" migrate async up
+    touch "${MIGRATION_MARKER}"
+fi
+
+wait_for_signoz
+
+"${COLLECTOR_BIN}" migrate sync check
+
+exec "${COLLECTOR_BIN}" \
+  --config "${COLLECTOR_CONFIG}"

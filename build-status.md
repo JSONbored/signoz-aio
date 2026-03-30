@@ -1,13 +1,24 @@
 # Build Status
 
-This repo is a template starter.
+`signoz-aio` is in the first runnable validation phase, with the core runtime now implemented.
 
-Before enabling automation for a derived repo:
+Current state:
 
-- replace all placeholder values
+- official upstream Docker architecture researched
+- current upstream image versions identified
+- single-image runtime implemented around:
+  - `signoz`
+  - `signoz-otel-collector`
+  - `clickhouse`
+  - `zookeeper`
+- local `linux/amd64` build passed
+- local smoke test passed, including restart and persistence
+- sync workflow corrected for GitHub Actions secret handling
+- beginner-first Unraid XML expanded with real upstream-backed advanced settings
+
+Before enabling automation for this repo:
+
 - run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-- verify the smoke test matches the actual container behavior
-- set the required Actions variables and `SYNC_TOKEN`
-- install Renovate for ongoing updates
-- configure upstream monitoring
-- confirm GHCR package visibility after first publish
+- set required Actions variables and `SYNC_TOKEN`
+- confirm first GHCR publish and XML sync behavior
+- validate real-world Unraid install behavior

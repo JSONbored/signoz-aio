@@ -14,8 +14,8 @@ Only the `main` branch and the most recent published image/tag are supported wit
 
 Do not open public issues for suspected vulnerabilities.
 
-- Preferred: GitHub private vulnerability report for the affected repository
-- Fallback: update this file with your security contact before making the repo public
+- Preferred: GitHub private vulnerability report for this repository
+- Fallback: contact the maintainer privately through the repository owner profile at https://github.com/JSONbored
 
 Include:
 

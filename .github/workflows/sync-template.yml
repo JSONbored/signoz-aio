@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   sync:
-    if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && vars.TEMPLATE_XML != '' && vars.AWESOME_UNRAID_REPOSITORY != '' && vars.AWESOME_UNRAID_XML_NAME != '' && vars.AWESOME_UNRAID_ICON_NAME != '' && secrets.SYNC_TOKEN != '' }}
+    if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && vars.TEMPLATE_XML != '' && vars.AWESOME_UNRAID_REPOSITORY != '' && vars.AWESOME_UNRAID_XML_NAME != '' && vars.AWESOME_UNRAID_ICON_NAME != '' }}
     runs-on: ubuntu-latest
     env:
       TEMPLATE_XML: ${{ vars.TEMPLATE_XML }}
@@ -30,7 +30,20 @@ jobs:
       - name: Checkout Source Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
+      - name: Verify sync token is present
+        id: token
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [[ -n "${SYNC_TOKEN}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "SYNC_TOKEN is not configured; skipping sync."
+          fi
+
       - name: Checkout Target Repository
+        if: ${{ steps.token.outputs.enabled == 'true' }}
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: ${{ env.TARGET_REPOSITORY }}
@@ -38,6 +51,7 @@ jobs:
           path: target-repo
 
       - name: Copy and Commit Template
+        if: ${{ steps.token.outputs.enabled == 'true' }}
         run: |
           cp "${TEMPLATE_XML}" "target-repo/${TARGET_XML_NAME}"
           mkdir -p target-repo/icons

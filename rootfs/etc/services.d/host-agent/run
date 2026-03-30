@@ -1,0 +1,33 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+is_true() {
+    case "${1,,}" in
+        1|true|yes|on) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+HOST_AGENT_CONFIG="/appdata/config/generated-host-agent.yaml"
+HOST_AGENT_STATUS="/appdata/config/generated-host-agent.status"
+COLLECTOR_BIN="/opt/signoz-otel-collector/signoz-otel-collector"
+
+if ! is_true "${SIGNOZ_ENABLE_HOST_AGENT:-false}"; then
+    echo "[signoz-aio] Local host agent disabled."
+    exec sleep infinity
+fi
+
+if [ ! -f "${HOST_AGENT_CONFIG}" ]; then
+    echo "[signoz-aio] Local host agent enabled, but no compatible host sources were detected."
+    if [ -f "${HOST_AGENT_STATUS}" ]; then
+        echo "[signoz-aio] Host agent status: $(cat "${HOST_AGENT_STATUS}")"
+    fi
+    exec sleep infinity
+fi
+
+until bash -lc 'exec 3<>/dev/tcp/127.0.0.1/4317' >/dev/null 2>&1; do
+    sleep 2
+done
+
+echo "[signoz-aio] Starting local host agent collector."
+exec "${COLLECTOR_BIN}" --config "${HOST_AGENT_CONFIG}"

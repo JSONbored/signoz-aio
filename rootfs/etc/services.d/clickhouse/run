@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+case "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}" in
+    1|true|TRUE|yes|YES|on|ON)
+        echo "[signoz-aio] External ClickHouse mode enabled; skipping bundled ClickHouse."
+        exec sleep infinity
+        ;;
+esac
+
+ulimit -n 262144 || true
+ulimit -u 65535 || true
+
+exec su -s /bin/bash clickhouse -c 'exec clickhouse-server --config-file=/etc/clickhouse-server/config.xml'

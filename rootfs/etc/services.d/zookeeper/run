@@ -1,0 +1,19 @@
+#!/command/with-contenv bash
+set -euo pipefail
+
+case "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}" in
+    1|true|TRUE|yes|YES|on|ON)
+        echo "[signoz-aio] External ClickHouse mode enabled; skipping bundled ZooKeeper."
+        exec sleep infinity
+        ;;
+esac
+
+export ALLOW_ANONYMOUS_LOGIN="${ALLOW_ANONYMOUS_LOGIN:-yes}"
+export ZOO_SERVER_ID="${ZOO_SERVER_ID:-1}"
+export ZOO_AUTOPURGE_INTERVAL="${ZOO_AUTOPURGE_INTERVAL:-1}"
+export ZOO_ENABLE_ADMIN_SERVER="${ZOO_ENABLE_ADMIN_SERVER:-no}"
+export ZOO_ENABLE_PROMETHEUS_METRICS="${ZOO_ENABLE_PROMETHEUS_METRICS:-yes}"
+export ZOO_PROMETHEUS_METRICS_PORT_NUMBER="${ZOO_PROMETHEUS_METRICS_PORT_NUMBER:-9141}"
+
+/opt/bitnami/scripts/zookeeper/setup.sh
+exec /opt/bitnami/scripts/zookeeper/run.sh

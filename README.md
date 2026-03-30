@@ -1,101 +1,228 @@
-# Unraid AIO Template
+# SigNoz AIO For Unraid
 
-A hardened starter for future `*-aio` repositories: one public repo per app, one companion GHCR image, one Unraid CA XML, and one beginner-first experience that still leaves room for power-user overrides.
+`signoz-aio` packages the full self-hosted SigNoz stack into a single Unraid-friendly image and CA app template.
 
-This template is opinionated on purpose. It is built for repos that should be:
+This image follows the current official SigNoz Docker deployment instead of inventing a custom rewrite. It supervises the services SigNoz currently expects for a complete small-to-medium self-hosted install:
 
-- easy for newcomers to install
-- honest about what is embedded versus external
-- reproducible in CI before publishing `latest`
-- cleanly syncable into `awesome-unraid`
+- `signoz`
+- `signoz-otel-collector`
+- `clickhouse`
+- `zookeeper`
 
-## What This Template Ships With
+## What Is Inside The Image
 
-- starter [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile) for wrapping an upstream image with `s6-overlay`
-- starter CA XML at [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- reusable smoke test at [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- derived-repo guardrail script at [`scripts/validate-derived-repo.sh`](/tmp/unraid-aio-template/scripts/validate-derived-repo.sh)
-- upstream monitor scaffold at [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
-- GitHub Actions for validation, smoke-test, GHCR publish, security checks, and optional `awesome-unraid` sync
-- starter docs, changelog, funding, issue templates, and security policy
-- public repo checklists under [`docs/`](/tmp/unraid-aio-template/docs)
+The image includes all of the stateful pieces needed for a self-contained SigNoz install:
 
-## Design Principles
+- `signoz`
+  - the main SigNoz UI and API service
+  - stores application metadata in an internal SQLite database persisted under `/appdata/signoz`
+- `signoz-otel-collector`
+  - receives OTLP data on `4317` and `4318`
+  - runs the telemetry-store migrations SigNoz needs in ClickHouse
+- `clickhouse`
+  - the primary telemetry database for traces, logs, metrics, and derived telemetry tables
+- `zookeeper`
+  - internal coordination layer used by the official SigNoz ClickHouse deployment
 
-- single-container first when it is realistic and not misleading
-- safe defaults for beginners, advanced knobs for power users
-- generated first-run secrets only when the app truly needs them
-- no publish until placeholders are gone and smoke tests pass
-- pinned workflow action SHAs and Renovate-managed dependency updates
-- stable-only upstream tracking with PR-first updates
-- update automation opens PRs, but merge decisions stay manual
-- public repos stay public-facing and product-facing only
+The image does not require any separate Postgres, TimescaleDB, or Redis sidecars. SigNoz's long-term telemetry data lives in ClickHouse, while SigNoz's app/config metadata in this AIO image lives in SQLite.
 
-## Recommended Workflow
+## Advanced Database Options
 
-1. Create a new private repo from this template.
-2. Rename `template-aio.xml` to the final app slug, for example `myapp-aio.xml`.
-3. Replace placeholders in the Dockerfile, XML, rootfs scripts, smoke test, README, and funding file.
-4. Replace [`assets/app-icon.png`](/tmp/unraid-aio-template/assets/app-icon.png) with the real icon.
-5. Follow [`docs/customization-guide.md`](/tmp/unraid-aio-template/docs/customization-guide.md).
-6. Follow [`docs/repo-settings.md`](/tmp/unraid-aio-template/docs/repo-settings.md).
-7. Keep `ENABLE_AIO_AUTOMATION` unset until the derived repo passes local validation.
-8. When ready, set `ENABLE_AIO_AUTOMATION=true` and let CI publish and sync.
-9. Install the Renovate GitHub App for the derived repo so pinned actions and Docker dependencies stay current.
-10. Configure [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml) so the repo can monitor the wrapped upstream app.
+The default install is fully self-contained and uses:
 
-## Required Actions Variables
+- SQLite for SigNoz metadata
+- bundled ClickHouse for telemetry storage
+- bundled ZooKeeper for ClickHouse coordination
 
-Set these in `Settings -> Secrets and variables -> Actions -> Variables`.
+For power users, the advanced app settings also support:
 
-- `ENABLE_AIO_AUTOMATION=true`
-- `TEMPLATE_XML=yourapp-aio.xml`
-- `AWESOME_UNRAID_REPOSITORY=JSONbored/awesome-unraid`
-- `AWESOME_UNRAID_XML_NAME=yourapp-aio.xml`
-- `AWESOME_UNRAID_ICON_NAME=yourapp.png`
+- external PostgreSQL for SigNoz metadata
+- root user provisioning through official SigNoz environment variables
+- external ClickHouse endpoints for advanced deployments
 
-Optional:
+Important limitation:
 
-- `IMAGE_NAME_OVERRIDE=jsonbored/yourapp-aio`
-- `TEMPLATE_ICON_PATH=assets/app-icon.png`
+- PostgreSQL can replace SQLite for metadata
+- PostgreSQL does not replace ClickHouse for traces, metrics, and logs
+- if you move to external ClickHouse, you are moving into a more advanced deployment model and should already understand your ClickHouse and ZooKeeper topology
 
-## Required Actions Secret
+## Architecture
 
-- `SYNC_TOKEN`
-  - fine-grained PAT
-  - repository access: `JSONbored/awesome-unraid`
-  - permission: `Contents: Read and write`
+```mermaid
+flowchart LR
+    A["Apps / SDKs / Agents"] -->|"OTLP gRPC :4317"| B["signoz-otel-collector"]
+    A -->|"OTLP HTTP :4318"| B
+    B -->|"metrics / logs / traces"| C["ClickHouse"]
+    D["SigNoz UI/API :8080"] -->|"query + metadata reads"| C
+    D -->|"app metadata"| E["SQLite (/appdata/signoz/signoz.db)"]
+    C -->|"cluster coordination"| F["ZooKeeper"]
+    G["/appdata"] --> C
+    G --> E
+    G --> F
+    G --> H["generated.env / runtime config"]
+```
 
-## Files To Customize First
+## Persistence Layout
 
-- [`Dockerfile`](/tmp/unraid-aio-template/Dockerfile)
-- [`template-aio.xml`](/tmp/unraid-aio-template/template-aio.xml)
-- [`scripts/smoke-test.sh`](/tmp/unraid-aio-template/scripts/smoke-test.sh)
-- [`rootfs/etc/cont-init.d/01-bootstrap.sh`](/tmp/unraid-aio-template/rootfs/etc/cont-init.d/01-bootstrap.sh)
-- [`rootfs/etc/services.d/app/run`](/tmp/unraid-aio-template/rootfs/etc/services.d/app/run)
-- [`README.md`](/tmp/unraid-aio-template/README.md)
-- [`.github/FUNDING.yml`](/tmp/unraid-aio-template/.github/FUNDING.yml)
-- [`upstream.toml`](/tmp/unraid-aio-template/upstream.toml)
+The Unraid app intentionally keeps the mount surface simple by using one root path:
 
-## Validation Flow
+- `/appdata`
 
-Derived repos created from this template should follow this order:
+Inside that mount, the container manages:
 
-1. local placeholder cleanup
-2. `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
-3. local image build
-4. local smoke test
-5. enable automation
-6. CI validation and publish
-7. `awesome-unraid` sync
-8. real Unraid install validation
+- `/appdata/clickhouse`
+- `/appdata/signoz`
+- `/appdata/zookeeper`
+- `/appdata/config`
+- `/appdata/tmp`
 
-Use [`docs/release-checklist.md`](/tmp/unraid-aio-template/docs/release-checklist.md) before making a derived repo public or submitting it to CA.
+## Current Status
 
-## Upstream Tracking
+The single-image runtime is implemented and validated.
 
-Use [`docs/upstream-tracking.md`](/tmp/unraid-aio-template/docs/upstream-tracking.md) to wire the derived repo to the stable upstream app it wraps.
+- the image supervises `signoz`, `signoz-otel-collector`, `clickhouse`, and `zookeeper`
+- `linux/amd64` build passes
+- smoke testing passes, including:
+  - first boot
+  - telemetry-store migrations
+  - OTLP listener readiness
+  - restart and persistence
+
+## First-Run Notes
+
+- first startup is heavier than a typical single-service app because ClickHouse, ZooKeeper, SigNoz, and the collector all need to initialize
+- expect more RAM and disk use than lighter AIO images
+- the default setup keeps things intentionally simple:
+  - one `/appdata` root
+  - one UI port
+  - two OTLP ingest ports
+  - sane advanced defaults for the collector and internal ZooKeeper housekeeping
+
+## Getting Data Into SigNoz
+
+SigNoz is only useful once something is sending telemetry into it. This image gives you ready OTLP endpoints, but it does not automatically reach out and scrape your entire server by default.
+
+The easiest ingestion paths are:
+
+- instrument applications with OpenTelemetry and send directly to:
+  - `http://YOUR-UNRAID-IP:4317` for OTLP gRPC
+  - `http://YOUR-UNRAID-IP:4318` for OTLP HTTP
+- run a separate OpenTelemetry Collector or Alloy agent on the Unraid host
+- configure that agent to:
+  - scrape Prometheus endpoints
+  - collect Docker container metrics
+  - tail Docker or file-based logs
+  - forward everything into this `signoz-aio` container
+
+Why keep the host agent separate?
+
+- it avoids giving the main SigNoz container broad access to the Docker socket
+- it avoids mounting host `/proc`, `/sys`, and container log directories into the main UI/database image
+- it keeps the AIO install safe and beginner-friendly while still giving power users a clean upgrade path
+
+## Recommended Monitoring Layout For Unraid
+
+```mermaid
+flowchart LR
+    A["Unraid host"] -->|"host metrics"| B["Optional built-in host agent"]
+    C["Docker containers"] -->|"docker stats + logs"| B
+    D["Apps with OTel SDKs"] -->|"direct OTLP or via agent"| B
+    E["Apps with Prometheus endpoints"] -->|"optional scrape targets"| B
+    B -->|"local OTLP"| F["SigNoz internal collector"]
+    F --> G["SigNoz UI"]
+    F --> H["ClickHouse + SQLite + ZooKeeper"]
+```
+
+For most users, this is the sweet spot:
+
+- `signoz-aio` stays the central backend and UI
+- the optional built-in local host agent can handle host collection on the same Unraid machine
+- instrumented apps can either send directly to SigNoz or rely on the local host agent for extra collection
+
+If you want to monitor other hosts later, a separate `signoz-agent` companion app still makes sense.
+
+## Quick Start Paths
+
+### 1. Instrumented apps
+
+If an app already supports OpenTelemetry, point it at:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://YOUR-UNRAID-IP:4317`
+  for gRPC exporters
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://YOUR-UNRAID-IP:4318`
+  for HTTP exporters
+
+Then verify in SigNoz:
+
+- traces appear in APM / Traces
+- application metrics appear in Metrics Explorer
+- application logs appear in Logs if the app also exports logs
+
+### 2. Prometheus scrape targets
+
+If an app exposes a `/metrics` endpoint, use a host collector to scrape it and forward to SigNoz.
+
+Starter example:
+
+- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+
+### 3. Unraid host + Docker telemetry
+
+If you want host metrics, Docker container metrics, and container logs from the same Unraid machine, enable the built-in local host agent in the app settings.
+
+Starter example:
+
+- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+
+The built-in host agent is auto-generated from the mounts and variables you provide. With the default Unraid paths, it can automatically enable:
+
+- Unraid CPU, memory, disk, and filesystem metrics
+- Docker container resource metrics
+- Docker stdout/stderr logs
+- optional Prometheus scrape targets you define
+
+This is the best fit for users who want:
+
+- one main AIO install
+- minimal extra setup
+- local Unraid and Docker observability without a second app
+
+## What We Recommend Newcomers Do First
+
+1. Get `signoz-aio` running with defaults.
+2. Verify the UI loads on port `8080`.
+3. Point one app or one collector at OTLP `4317` or `4318`.
+4. Confirm data appears in SigNoz.
+5. Only then expand into Prometheus scraping, host metrics, and container logs.
+
+## What This AIO Does Not Bundle
+
+This image is self-contained for the SigNoz core stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from your entire Unraid host or every Docker container on your server by default.
+
+That means you still need to connect senders such as:
+
+- OpenTelemetry SDKs inside apps
+- OpenTelemetry Collector agents
+- Prometheus scrape pipelines
+- log shippers or agent-based host collectors
+
+That is only partly true now. This repo can also run an optional built-in local host agent for the same Unraid machine, but it still does not magically monitor remote systems by itself.
+
+## Docs And Examples
+
+- [Ingestion guide](/tmp/signoz-aio/docs/ingestion-guide.md)
+- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+
+## Helpful References
+
+- [SigNoz self-host Docker docs](https://signoz.io/docs/install/docker/)
+- [SigNoz Docker Collection Agent overview](https://signoz.io/docs/opentelemetry-collection-agents/docker/overview/)
+- [SigNoz Docker Collection Agent configuration](https://signoz.io/docs/opentelemetry-collection-agents/docker/configure/)
+- [SigNoz Prometheus metrics guide](https://signoz.io/docs/userguide/prometheus-metrics)
+- [SigNoz deployment README](https://github.com/SigNoz/signoz/tree/main/deploy)
+- [SigNoz single-binary consolidation issue](https://github.com/SigNoz/signoz/issues/7309)
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=JSONbored/unraid-aio-template&type=date&legend=top-left)](https://www.star-history.com/#JSONbored/unraid-aio-template&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=JSONbored/signoz-aio&type=date&legend=top-left)](https://www.star-history.com/#JSONbored/signoz-aio&Date)
