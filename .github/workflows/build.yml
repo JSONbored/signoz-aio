@@ -151,7 +151,7 @@ jobs:
       - name: Compute image tags
         id: prep
         run: |
-          image="${REGISTRY}/${IMAGE_NAME}"
+          image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
           sha_tag="${image}:sha-${GITHUB_SHA}"
           version="$(awk -F= '/^ARG UPSTREAM_SIGNOZ_VERSION=/{print $2; exit}' Dockerfile)"
           version_no_v="${version#v}"
