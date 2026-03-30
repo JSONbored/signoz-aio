@@ -9,9 +9,56 @@ This repo is being built around the current official SigNoz Docker deployment, n
 - `clickhouse`
 - `zookeeper`
 
+## What Is Inside The Image
+
+The current AIO image includes all of the stateful pieces needed for a self-contained SigNoz install:
+
+- `signoz`
+  - the main SigNoz UI and API service
+  - stores application metadata in an internal SQLite database persisted under `/appdata/signoz`
+- `signoz-otel-collector`
+  - receives OTLP data on `4317` and `4318`
+  - runs the telemetry-store migrations SigNoz needs in ClickHouse
+- `clickhouse`
+  - the primary telemetry database for traces, logs, metrics, and derived telemetry tables
+- `zookeeper`
+  - internal coordination layer used by the official SigNoz ClickHouse deployment
+
+The image does not require any separate Postgres, TimescaleDB, or Redis sidecars. SigNoz's long-term telemetry data lives in ClickHouse, while SigNoz's app/config metadata in this AIO image lives in SQLite.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Apps / SDKs / Agents"] -->|"OTLP gRPC :4317"| B["signoz-otel-collector"]
+    A -->|"OTLP HTTP :4318"| B
+    B -->|"metrics / logs / traces"| C["ClickHouse"]
+    D["SigNoz UI/API :8080"] -->|"query + metadata reads"| C
+    D -->|"app metadata"| E["SQLite (/appdata/signoz/signoz.db)"]
+    C -->|"cluster coordination"| F["ZooKeeper"]
+    G["/appdata"] --> C
+    G --> E
+    G --> F
+    G --> H["generated.env / runtime config"]
+```
+
+## Persistence Layout
+
+The AIO template intentionally keeps the Unraid mount surface simple by using one root path:
+
+- `/appdata`
+
+Inside that mount, the container manages:
+
+- `/appdata/clickhouse`
+- `/appdata/signoz`
+- `/appdata/zookeeper`
+- `/appdata/config`
+- `/appdata/tmp`
+
 ## Current Status
 
-The single-image runtime is now implemented and locally validated.
+The single-image runtime is implemented and locally validated.
 
 - the image supervises `signoz`, `signoz-otel-collector`, `clickhouse`, and `zookeeper`
 - local `linux/amd64` build passes
@@ -22,6 +69,27 @@ The single-image runtime is now implemented and locally validated.
   - restart and persistence
 
 The next step is real Unraid validation before CA submission.
+
+## First-Run Notes
+
+- first startup is heavier than a typical single-service app because ClickHouse, ZooKeeper, SigNoz, and the collector all need to initialize
+- expect more RAM and disk use than lighter AIO images
+- the default AIO template keeps setup intentionally simple:
+  - one `/appdata` root
+  - one UI port
+  - two OTLP ingest ports
+  - sane advanced defaults for the collector and internal ZooKeeper housekeeping
+
+## What This AIO Does Not Bundle
+
+This image is self-contained for the SigNoz core stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from your entire Unraid host or every Docker container on your server by default.
+
+That means you still need to connect senders such as:
+
+- OpenTelemetry SDKs inside apps
+- OpenTelemetry Collector agents
+- Prometheus scrape pipelines
+- log shippers or agent-based host collectors
 
 ## Upstream Snapshot
 
@@ -65,6 +133,7 @@ The current `signoz-aio` contract is:
 - it should be honest about embedded services and storage cost
 - it should prefer stable upstream versions and PR-first updates
 - it should be beginner-safe for Unraid without hiding important observability tradeoffs
+- it should expose only real upstream-backed advanced settings instead of speculative knobs
 
 ## Key Docs
 

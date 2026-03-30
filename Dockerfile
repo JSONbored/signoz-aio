@@ -3,6 +3,7 @@
 ARG UPSTREAM_SIGNOZ_VERSION=v0.117.1
 ARG UPSTREAM_OTELCOL_VERSION=v0.144.2
 ARG UPSTREAM_CLICKHOUSE_VERSION=25.5.6
+ARG UPSTREAM_ZOOKEEPER_VERSION=3.7.1
 ARG HISTOGRAM_QUANTILE_VERSION=v0.0.1
 ARG S6_OVERLAY_VERSION=3.2.1.0
 
@@ -10,15 +11,28 @@ FROM signoz/signoz:${UPSTREAM_SIGNOZ_VERSION} AS signoz
 
 FROM signoz/signoz-otel-collector:${UPSTREAM_OTELCOL_VERSION} AS otelcol
 
-FROM signoz/zookeeper:3.7.1 AS zookeeper
+FROM signoz/zookeeper:${UPSTREAM_ZOOKEEPER_VERSION} AS zookeeper
 
 FROM clickhouse/clickhouse-server:${UPSTREAM_CLICKHOUSE_VERSION}
 
 ARG TARGETARCH
+ARG UPSTREAM_SIGNOZ_VERSION
+ARG UPSTREAM_OTELCOL_VERSION
+ARG UPSTREAM_CLICKHOUSE_VERSION
+ARG UPSTREAM_ZOOKEEPER_VERSION
 ARG HISTOGRAM_QUANTILE_VERSION
 ARG S6_OVERLAY_VERSION
 
 USER root
+
+LABEL org.opencontainers.image.title="signoz-aio" \
+      org.opencontainers.image.description="Single-image Unraid-friendly SigNoz stack bundling SigNoz, the SigNoz OTel collector, ClickHouse, and ZooKeeper." \
+      org.opencontainers.image.source="https://github.com/JSONbored/signoz-aio" \
+      org.opencontainers.image.vendor="JSONbored" \
+      io.jsonbored.upstream.signoz.version="${UPSTREAM_SIGNOZ_VERSION}" \
+      io.jsonbored.upstream.otel_collector.version="${UPSTREAM_OTELCOL_VERSION}" \
+      io.jsonbored.upstream.clickhouse.version="${UPSTREAM_CLICKHOUSE_VERSION}" \
+      io.jsonbored.upstream.zookeeper.version="${UPSTREAM_ZOOKEEPER_VERSION}"
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bash \

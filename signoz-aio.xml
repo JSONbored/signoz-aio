@@ -9,11 +9,25 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/JSONbored/signoz-aio/issues</Support>
   <Project>https://github.com/JSONbored/signoz-aio</Project>
-  <Overview>SigNoz AIO for Unraid bundles the official self-hosted SigNoz stack into a single Unraid-friendly image. It includes the SigNoz server, the SigNoz OTEL collector, ClickHouse, and ZooKeeper, with exposed ports for the UI/API on 8080 and OTLP ingest on 4317/4318. This template is ready for first-round Unraid validation before Community Applications submission.</Overview>
-  <Category>Tools:</Category>
+  <Overview>SigNoz is a self-hosted observability platform for traces, metrics, and logs.&#xD;
+[center][b][color=#ff8c00]JSONbored Verified AIO Template[/color][/b][/center]
+
+This Unraid AIO template packages the official SigNoz Docker stack into a single container with sensible defaults for a first deployment. It internally manages SigNoz, the SigNoz OTEL collector, ClickHouse, and ZooKeeper, so you do not need to translate the upstream multi-container compose stack yourself.&#xD;
+&#xD;
+[b]All-In-One (AIO) Edition[/b]&#xD;
+Install it, keep the defaults, and point your OpenTelemetry senders at the published OTLP ports. Advanced settings are available for power users, but they are intentionally limited to real upstream-backed options instead of speculative extras.&#xD;
+&#xD;
+[b]Initial Setup:[/b]&#xD;
+1. Click Apply.&#xD;
+2. Wait for first startup to complete. This image boots multiple internal services, so the first run is heavier than a typical single-service container.&#xD;
+3. Open the WebUI on port 8080.&#xD;
+4. Send telemetry to OTLP gRPC on 4317 or OTLP HTTP on 4318.&#xD;
+&#xD;
+[b]Resource Note:[/b] ClickHouse makes SigNoz powerful, but also heavier on RAM, disk, and startup time than lighter AIO apps.</Overview>
+  <Category>Monitoring: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/signoz-aio.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png</Icon>
+  <Icon>https://raw.githubusercontent.com/JSONbored/signoz-aio/main/assets/app-icon.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
@@ -55,9 +69,14 @@
     </Variable>
   </Environment>
 
-  <Config Name="SigNoz UI Port" Target="8080" Default="8080" Mode="tcp" Description="SigNoz UI and API port." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
-  <Config Name="OTLP gRPC Port" Target="4317" Default="4317" Mode="tcp" Description="OTLP gRPC ingest port for telemetry senders." Type="Port" Display="always" Required="true" Mask="false">4317</Config>
-  <Config Name="OTLP HTTP Port" Target="4318" Default="4318" Mode="tcp" Description="OTLP HTTP ingest port for telemetry senders." Type="Port" Display="always" Required="true" Mask="false">4318</Config>
-  <Config Name="AppData" Target="/appdata" Default="/mnt/user/appdata/signoz-aio" Mode="rw" Description="Persistent storage for ClickHouse, ZooKeeper, SigNoz state, and related runtime data." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/signoz-aio</Config>
+  <Config Name="SigNoz UI Port" Target="8080" Default="8080" Mode="tcp" Description="Main SigNoz UI and API port." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="OTLP gRPC Port" Target="4317" Default="4317" Mode="tcp" Description="OTLP gRPC ingest port for agents, SDKs, and collectors sending telemetry into SigNoz." Type="Port" Display="always" Required="true" Mask="false">4317</Config>
+  <Config Name="OTLP HTTP Port" Target="4318" Default="4318" Mode="tcp" Description="OTLP HTTP ingest port for telemetry senders that use HTTP instead of gRPC." Type="Port" Display="always" Required="true" Mask="false">4318</Config>
+  <Config Name="AppData - SigNoz Root" Target="/appdata" Default="/mnt/user/appdata/signoz-aio" Mode="rw" Description="Single persistent root that stores ClickHouse data, ZooKeeper state, generated config, and SigNoz SQLite metadata." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/signoz-aio</Config>
   <Config Name="Timezone" Target="TZ" Default="UTC" Mode="" Description="Container timezone." Type="Variable" Display="advanced" Required="false" Mask="false">UTC</Config>
+  <Config Name="Tokenizer JWT Secret" Target="SIGNOZ_TOKENIZER_JWT_SECRET" Default="" Mode="" Description="Optional. Leave blank to auto-generate a persistent secret on first boot and save it under /appdata/config/generated.env." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="[Collector] OTEL Resource Attributes" Target="OTEL_RESOURCE_ATTRIBUTES" Default="host.name=signoz-host,os.type=linux" Mode="" Description="Advanced OpenTelemetry resource attributes injected into the internal collector. Useful if you want a clearer default host or environment label." Type="Variable" Display="advanced" Required="false" Mask="false">host.name=signoz-host,os.type=linux</Config>
+  <Config Name="[Collector] Low Cardinal Exception Grouping" Target="LOW_CARDINAL_EXCEPTION_GROUPING" Default="false" Mode="" Description="Advanced upstream collector option for ClickHouse trace exception grouping. Leave at false unless you intentionally want the alternate grouping behavior." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="[Collector] ClickHouse Timeout" Target="SIGNOZ_OTEL_COLLECTOR_TIMEOUT" Default="10m" Mode="" Description="Advanced timeout used by the internal SigNoz collector for ClickHouse operations and migrations." Type="Variable" Display="advanced" Required="false" Mask="false">10m</Config>
+  <Config Name="[ZooKeeper] Auto-Purge Interval" Target="ZOO_AUTOPURGE_INTERVAL" Default="1" Mode="" Description="Advanced internal housekeeping interval in hours for ZooKeeper snapshot and log cleanup. The default matches the official SigNoz Docker deployment." Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
 </Container>

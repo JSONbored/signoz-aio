@@ -1,6 +1,6 @@
 # Build Status
 
-`signoz-aio` is in the first runnable validation phase.
+`signoz-aio` is in the first runnable validation phase, with the core runtime now implemented.
 
 Current state:
 
@@ -13,6 +13,8 @@ Current state:
   - `zookeeper`
 - local `linux/amd64` build passed
 - local smoke test passed, including restart and persistence
+- sync workflow corrected for GitHub Actions secret handling
+- beginner-first Unraid XML expanded with real upstream-backed advanced settings
 
 Before enabling automation for this repo:
 
