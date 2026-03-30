@@ -238,6 +238,9 @@ The current `signoz-aio` contract is:
 ## Sources Used For Bootstrap
 
 - [SigNoz self-host Docker docs](https://signoz.io/docs/install/docker/)
+- [SigNoz Docker Collection Agent overview](https://signoz.io/docs/opentelemetry-collection-agents/docker/overview/)
+- [SigNoz Docker Collection Agent configuration](https://signoz.io/docs/opentelemetry-collection-agents/docker/configure/)
+- [SigNoz Prometheus metrics guide](https://signoz.io/docs/userguide/prometheus-metrics)
 - [SigNoz deployment README](https://github.com/SigNoz/signoz/tree/main/deploy)
 - [SigNoz single-binary consolidation issue](https://github.com/SigNoz/signoz/issues/7309)
 

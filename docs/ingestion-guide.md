@@ -132,3 +132,10 @@ The most newcomer-friendly long-term setup is likely:
    - Prometheus scraping
 
 That split keeps the main CA template simple while still giving advanced users a clean and well-documented expansion path.
+
+## Useful Official References
+
+- [SigNoz Docker install docs](https://signoz.io/docs/install/docker/)
+- [SigNoz Docker Collection Agent overview](https://signoz.io/docs/opentelemetry-collection-agents/docker/overview/)
+- [SigNoz Docker Collection Agent configuration](https://signoz.io/docs/opentelemetry-collection-agents/docker/configure/)
+- [SigNoz Prometheus metrics guide](https://signoz.io/docs/userguide/prometheus-metrics)
