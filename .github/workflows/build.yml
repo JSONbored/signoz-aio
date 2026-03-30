@@ -3,8 +3,6 @@ name: Build AIO Image
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*'
     paths:
       - 'Dockerfile'
       - 'rootfs/**'
@@ -116,7 +114,7 @@ jobs:
           docker logs "${CONTAINER_NAME:-signoz-aio-smoke}" || true
 
   publish:
-    if: ${{ github.event_name != 'pull_request' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
+    if: ${{ github.event_name != 'pull_request' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
     needs:
       - validate-repo
       - smoke-test
@@ -146,12 +144,13 @@ jobs:
         run: |
           image="${REGISTRY}/${IMAGE_NAME}"
           sha_tag="${image}:sha-${GITHUB_SHA}"
+          version="$(awk -F= '/^ARG UPSTREAM_SIGNOZ_VERSION=/{print $2; exit}' Dockerfile)"
+          version_no_v="${version#v}"
 
           {
             echo "tags<<EOF"
-            if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-              version="${GITHUB_REF#refs/tags/}"
-              version_no_v="${version#v}"
+            echo "${image}:latest"
+            if [[ -n "${version}" ]]; then
               IFS='.' read -r major minor patch <<< "${version_no_v}"
               echo "${image}:${version}"
               if [[ -n "${major:-}" ]]; then
@@ -160,8 +159,6 @@ jobs:
               if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
                 echo "${image}:v${major}.${minor}"
               fi
-            else
-              echo "${image}:latest"
             fi
             echo "${sha_tag}"
             echo "EOF"
