@@ -81,7 +81,7 @@ jobs:
           ./scripts/validate-derived-repo.sh .
 
   smoke-test:
-    if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && (github.event_name != 'workflow_dispatch' || inputs.run_smoke_test == true) }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smoke_test == true }}
     needs: validate-repo
     runs-on: ubuntu-latest
     permissions:
@@ -116,7 +116,7 @@ jobs:
           docker logs "${CONTAINER_NAME:-signoz-aio-smoke}" || true
 
   publish:
-    if: ${{ vars.ENABLE_AIO_AUTOMATION == 'true' && github.event_name != 'pull_request' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
+    if: ${{ github.event_name != 'pull_request' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish_image == true)) }}
     needs:
       - validate-repo
       - smoke-test
