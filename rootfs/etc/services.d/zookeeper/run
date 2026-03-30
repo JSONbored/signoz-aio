@@ -12,8 +12,19 @@ export ALLOW_ANONYMOUS_LOGIN="${ALLOW_ANONYMOUS_LOGIN:-yes}"
 export ZOO_SERVER_ID="${ZOO_SERVER_ID:-1}"
 export ZOO_AUTOPURGE_INTERVAL="${ZOO_AUTOPURGE_INTERVAL:-1}"
 export ZOO_ENABLE_ADMIN_SERVER="${ZOO_ENABLE_ADMIN_SERVER:-no}"
+export ZOO_ADMIN_SERVER_PORT_NUMBER="${ZOO_ADMIN_SERVER_PORT_NUMBER:-8081}"
 export ZOO_ENABLE_PROMETHEUS_METRICS="${ZOO_ENABLE_PROMETHEUS_METRICS:-yes}"
 export ZOO_PROMETHEUS_METRICS_PORT_NUMBER="${ZOO_PROMETHEUS_METRICS_PORT_NUMBER:-9141}"
 
 /opt/bitnami/scripts/zookeeper/setup.sh
+if grep -q '^admin\.serverPort=' /opt/bitnami/zookeeper/conf/zoo.cfg; then
+    sed -i "s/^admin\\.serverPort=.*/admin.serverPort=${ZOO_ADMIN_SERVER_PORT_NUMBER}/" /opt/bitnami/zookeeper/conf/zoo.cfg
+else
+    printf '\nadmin.serverPort=%s\n' "${ZOO_ADMIN_SERVER_PORT_NUMBER}" >> /opt/bitnami/zookeeper/conf/zoo.cfg
+fi
+if grep -q '^admin\.enableServer=' /opt/bitnami/zookeeper/conf/zoo.cfg; then
+    sed -i 's/^admin\.enableServer=.*/admin.enableServer=false/' /opt/bitnami/zookeeper/conf/zoo.cfg
+else
+    printf 'admin.enableServer=false\n' >> /opt/bitnami/zookeeper/conf/zoo.cfg
+fi
 exec /opt/bitnami/scripts/zookeeper/run.sh
