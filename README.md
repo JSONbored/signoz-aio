@@ -139,6 +139,14 @@ For most users, this is the sweet spot:
 - the optional built-in local host agent can handle host collection on the same Unraid machine
 - instrumented apps can either send directly to SigNoz or rely on the local host agent for extra collection
 
+## Releases
+
+`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.117.1-aio.1`.
+
+Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
+
+See [docs/releases.md](/Users/shadowbook/Documents/signoz-aio/docs/releases.md) for the release workflow details.
+
 If you want to monitor other hosts later, a separate `signoz-agent` companion app still makes sense.
 
 ## Quick Start Paths
