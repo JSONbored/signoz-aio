@@ -27,13 +27,20 @@ jobs:
           tar -xzf "/tmp/${archive}" -C /tmp
           install "/tmp/git-cliff-${GIT_CLIFF_VERSION}/git-cliff" /usr/local/bin/git-cliff
 
+      - name: Check for unreleased changes
+        id: changes
+        run: |
+          echo "has_changes=$(python3 scripts/release.py has-unreleased-changes)" >> "${GITHUB_OUTPUT}"
+
       - name: Compute release version
         id: version
+        if: steps.changes.outputs.has_changes == 'true'
         run: |
           release_version="$(python3 scripts/release.py next-version)"
           echo "release_version=${release_version}" >> "${GITHUB_OUTPUT}"
 
       - name: Generate changelog
+        if: steps.changes.outputs.has_changes == 'true'
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,6 +49,7 @@ jobs:
           git-cliff --config cliff.toml --tag "${RELEASE_VERSION}" --output CHANGELOG.md
 
       - name: Create release PR
+        if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           commit-message: "chore(release): ${{ steps.version.outputs.release_version }}"
