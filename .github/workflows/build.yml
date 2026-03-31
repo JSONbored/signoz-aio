@@ -312,21 +312,17 @@ jobs:
         run: |
           image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
           sha_tag="${image}:sha-${GITHUB_SHA}"
-          version="$(awk -F= '/^ARG UPSTREAM_SIGNOZ_VERSION=/{print $2; exit}' Dockerfile)"
-          version_no_v="${version#v}"
+          raw_version="$(awk -F= '/^ARG UPSTREAM_SIGNOZ_VERSION=/{print $2; exit}' Dockerfile)"
+          upstream_version="${raw_version%%@*}"
+          aio_track="aio-v1"
 
           {
+            echo "upstream_version=${upstream_version}"
             echo "tags<<EOF"
             echo "${image}:latest"
-            if [[ -n "${version}" ]]; then
-              IFS='.' read -r major minor patch <<< "${version_no_v}"
-              echo "${image}:${version}"
-              if [[ -n "${major:-}" ]]; then
-                echo "${image}:v${major}"
-              fi
-              if [[ -n "${major:-}" && -n "${minor:-}" ]]; then
-                echo "${image}:v${major}.${minor}"
-              fi
+            if [[ -n "${upstream_version}" ]]; then
+              echo "${image}:${upstream_version}"
+              echo "${image}:${upstream_version}-${aio_track}"
             fi
             echo "${sha_tag}"
             echo "EOF"
@@ -341,6 +337,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.prep.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/JSONbored/signoz-aio
+            org.opencontainers.image.title=signoz-aio
+            org.opencontainers.image.version=${{ steps.prep.outputs.upstream_version || '' }}
+            io.jsonbored.upstream.name=SigNoz
 
   sync-awesome-unraid:
     if: ${{ needs.detect-changes.outputs.template_assets_related == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
