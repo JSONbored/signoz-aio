@@ -19,7 +19,8 @@ Every `main` build publishes:
 
 ## Release flow
 
-1. Trigger **Release / SigNoz-AIO** from `main`.
+1. Trigger **Release / SigNoz-AIO** from `main` with `action=prepare`.
 2. The workflow computes the next `upstream-aio.N` version and opens a release PR.
-3. Merge that PR into `main`.
-4. After merge, the workflow creates the Git tag and GitHub Release automatically.
+3. Review and merge that PR into `main`.
+4. Trigger **Release / SigNoz-AIO** from `main` again with `action=publish`.
+5. The workflow reads the merged `CHANGELOG.md` entry, creates the Git tag, and publishes the GitHub Release.
