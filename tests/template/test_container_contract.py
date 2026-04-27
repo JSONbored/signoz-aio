@@ -8,6 +8,10 @@ from defusedxml import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = ROOT / "Dockerfile"
+CONFIG_MATRIX = ROOT / "docs" / "configuration-matrix.md"
+UPSTREAM_SIGNOZ_ENV_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "signoz-v0.120.0-upstream-env.txt"
+)
 
 SECRET_KEYWORDS = (
     "ACCESS_KEY",
@@ -94,12 +98,15 @@ def test_secret_like_template_variables_are_masked() -> None:
         default = config.get("Default") or ""
         if (
             target.endswith("_PATH")
+            or target.endswith("_FILE")
             or target.endswith("_ENABLED")
             or target.startswith(("MAX_", "MIN_"))
             or "MAX__TOKEN__LIFETIME" in target
             or "TOKEN_LIFETIME" in target
             or "TOKENIZER_LIFETIME" in target
             or "TOKENIZER_ROTATION" in target
+            or "IDENTN_TOKENIZER_HEADERS" in target
+            or "TOKENIZER_OPAQUE_GC" in target
             or "TOKENIZER_OPAQUE_TOKEN_MAX" in target
             or name.upper().endswith(" PATH")
             or set(default.split("|")) == {"false", "true"}
@@ -130,15 +137,32 @@ def test_beginner_surface_is_minimal_and_fixed_booleans_are_dropdowns() -> None:
     fixed_boolean_targets = {
         "LOW_CARDINAL_EXCEPTION_GROUPING",
         "SIGNOZ_ANALYTICS_ENABLED",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__REQUIRE__TLS",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CONFIG_INSECURE__SKIP__VERIFY",
+        "SIGNOZ_AUDITOR_OTLPHTTP_INSECURE",
+        "SIGNOZ_AUDITOR_OTLPHTTP_RETRY_ENABLED",
         "SIGNOZ_EMAILING_ENABLED",
         "SIGNOZ_EMAILING_SMTP_TLS_ENABLED",
+        "SIGNOZ_EMAILING_SMTP_TLS_INSECURE__SKIP__VERIFY",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_FOOTER_ENABLED",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HEADER_ENABLED",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HELP_ENABLED",
         "SIGNOZ_ENABLE_HOST_AGENT",
+        "SIGNOZ_IDENTN_APIKEY_ENABLED",
+        "SIGNOZ_IDENTN_IMPERSONATION_ENABLED",
+        "SIGNOZ_IDENTN_TOKENIZER_ENABLED",
+        "SIGNOZ_INSTRUMENTATION_METRICS_ENABLED",
+        "SIGNOZ_INSTRUMENTATION_TRACES_ENABLED",
         "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION",
         "SIGNOZ_PPROF_ENABLED",
+        "SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_ENABLED",
+        "SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED",
         "SIGNOZ_STATSREPORTER_ENABLED",
+        "SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES",
         "SIGNOZ_USE_EXTERNAL_CLICKHOUSE",
         "SIGNOZ_USER_PASSWORD_RESET_ALLOW__SELF",
         "SIGNOZ_USER_ROOT_ENABLED",
+        "SIGNOZ_VERSION_BANNER_ENABLED",
     }
     configs_by_target = {config.get("Target"): config for config in _config_elements()}
     for target in fixed_boolean_targets:
@@ -149,7 +173,13 @@ def test_beginner_surface_is_minimal_and_fixed_booleans_are_dropdowns() -> None:
         }, f"{target} should use a pipe-delimited Unraid dropdown"
 
     expected_dropdowns = {
+        "SIGNOZ_AUDITOR_PROVIDER": "noop|otlphttp",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MAX__VERSION": "upstream|TLS12|TLS13",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MIN__VERSION": "upstream|TLS12|TLS13",
         "SIGNOZ_CACHE_PROVIDER": "memory|redis",
+        "SIGNOZ_FLAGGER_CONFIG_BOOLEAN_KAFKA__SPAN__EVAL": "upstream|true|false",
+        "SIGNOZ_FLAGGER_CONFIG_BOOLEAN_USE__SPAN__METRICS": "upstream|true|false",
+        "SIGNOZ_INSTRUMENTATION_LOGS_LEVEL": "info|debug|warn|error",
         "SIGNOZ_SQLSTORE_PROVIDER": "sqlite|postgres",
         "SIGNOZ_SQLSTORE_SQLITE_MODE": "wal|delete",
         "SIGNOZ_SQLSTORE_SQLITE_TRANSACTION__MODE": "deferred|immediate|exclusive",
@@ -157,6 +187,24 @@ def test_beginner_surface_is_minimal_and_fixed_booleans_are_dropdowns() -> None:
     for target, expected_default in expected_dropdowns.items():
         config = configs_by_target[target]
         assert config.get("Default") == expected_default  # nosec B101
+
+
+def test_upstream_signoz_config_surface_is_exposed_or_classified() -> None:
+    targets = {config.get("Target") for config in _config_elements()}
+    docs = CONFIG_MATRIX.read_text()
+    upstream_keys = {
+        line.strip()
+        for line in UPSTREAM_SIGNOZ_ENV_FIXTURE.read_text().splitlines()
+        if line.strip()
+    }
+
+    unaccounted = sorted(
+        key for key in upstream_keys if key not in targets and key not in docs
+    )
+    assert not unaccounted, (  # nosec B101
+        "upstream SigNoz env keys must be exposed in XML or classified in docs: "
+        + ", ".join(unaccounted)
+    )
 
 
 def test_required_appdata_paths_are_declared_as_container_volumes() -> None:

@@ -436,6 +436,17 @@ def test_invalid_external_postgres_fails_fast() -> None:
             assert "requires SIGNOZ_SQLSTORE_POSTGRES_DSN" in output  # nosec B101
 
 
+def test_invalid_external_redis_cache_fails_fast() -> None:
+    env = {
+        "SIGNOZ_CACHE_PROVIDER": "redis",
+        "SIGNOZ_AIO_WAIT_TIMEOUT_SECONDS": "5",
+    }
+    with docker_volume("signoz-aio-invalid-redis-appdata") as appdata_volume:
+        with container(appdata_volume, env_overrides=env) as runtime:
+            output = wait_for_container_exit(runtime.name)
+            assert "requires SIGNOZ_CACHE_REDIS_HOST" in output  # nosec B101
+
+
 def test_host_agent_mode_records_source_detection_status_and_prometheus_config() -> (
     None
 ):
@@ -467,24 +478,111 @@ def test_host_agent_mode_records_source_detection_status_and_prometheus_config()
 
 def test_advanced_signoz_env_surface_boots_and_reaches_process_env() -> None:
     env = {
+        "SIGNOZ_VERSION_BANNER_ENABLED": "false",
+        "SIGNOZ_INSTRUMENTATION_LOGS_LEVEL": "warn",
+        "SIGNOZ_INSTRUMENTATION_TRACES_ENABLED": "false",
+        "SIGNOZ_INSTRUMENTATION_TRACES_PROCESSORS_BATCH_EXPORTER_OTLP_ENDPOINT": "localhost:4317",
+        "SIGNOZ_INSTRUMENTATION_METRICS_ENABLED": "true",
+        "SIGNOZ_INSTRUMENTATION_METRICS_READERS_PULL_EXPORTER_PROMETHEUS_HOST": "0.0.0.0",  # nosec B104
+        "SIGNOZ_INSTRUMENTATION_METRICS_READERS_PULL_EXPORTER_PROMETHEUS_PORT": "9090",
         "SIGNOZ_ANALYTICS_ENABLED": "false",
+        "SIGNOZ_ANALYTICS_SEGMENT_KEY": "segment-test-key",
         "SIGNOZ_STATSREPORTER_ENABLED": "false",
+        "SIGNOZ_STATSREPORTER_INTERVAL": "12h",
+        "SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES": "false",
         "SIGNOZ_EMAILING_ENABLED": "true",
         "SIGNOZ_EMAILING_SMTP_ADDRESS": "127.0.0.1:25",
         "SIGNOZ_EMAILING_SMTP_FROM": "signoz@example.invalid",
+        "SIGNOZ_EMAILING_SMTP_HELLO": "signoz-aio.local",
+        "SIGNOZ_EMAILING_SMTP_AUTH_USERNAME": "smtp-user",
+        "SIGNOZ_EMAILING_SMTP_AUTH_PASSWORD": ":".join(("smtp", "auth", "value")),
+        "SIGNOZ_EMAILING_SMTP_AUTH_SECRET": ":".join(("smtp", "shared", "value")),
+        "SIGNOZ_EMAILING_SMTP_AUTH_IDENTITY": "smtp-identity",
+        "SIGNOZ_EMAILING_SMTP_TLS_ENABLED": "false",
+        "SIGNOZ_EMAILING_SMTP_TLS_INSECURE__SKIP__VERIFY": "false",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HEADER_ENABLED": "false",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HEADER_LOGO__URL": "https://example.invalid/logo.png",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HELP_ENABLED": "false",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_HELP_EMAIL": "help@example.invalid",
+        "SIGNOZ_EMAILING_TEMPLATES_FORMAT_FOOTER_ENABLED": "false",
         "SIGNOZ_APISERVER_TIMEOUT_DEFAULT": "70s",
         "SIGNOZ_APISERVER_TIMEOUT_MAX": "700s",
+        "SIGNOZ_QUERIER_CACHE__TTL": "24h",
+        "SIGNOZ_QUERIER_FLUX__INTERVAL": "10m",
+        "SIGNOZ_QUERIER_MAX__CONCURRENT__QUERIES": "2",
+        "SIGNOZ_PROMETHEUS_TIMEOUT": "90s",
+        "SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_ENABLED": "true",
+        "SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_PATH": "/appdata/config/prometheus-active-queries.log",
+        "SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_MAX__CONCURRENT": "10",
         "SIGNOZ_PPROF_ENABLED": "false",
         "SIGNOZ_RULER_EVAL__DELAY": "3m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_POLL__INTERVAL": "45s",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_EXTERNAL__URL": "http://localhost:8080",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_RESOLVE__TIMEOUT": "4m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__BY": "alertname,severity",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__INTERVAL": "2m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__WAIT": "30s",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_REPEAT__INTERVAL": "2h",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_ALERTS_GC__INTERVAL": "20m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAX": "0",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAX__SIZE__BYTES": "0",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAINTENANCE__INTERVAL": "20m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_RETENTION": "96h",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_NFLOG_MAINTENANCE__INTERVAL": "20m",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_NFLOG_RETENTION": "96h",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__FROM": "alerts@example.invalid",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__HELLO": "signoz-aio.local",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__SMARTHOST": "127.0.0.1:25",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__USERNAME": "alert-user",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__PASSWORD": ":".join(
+            ("alert", "auth", "value")
+        ),
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__SECRET": ":".join(
+            ("alert", "shared", "value")
+        ),
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__IDENTITY": "alert-identity",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__REQUIRE__TLS": "false",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CONFIG_INSECURE__SKIP__VERIFY": "true",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MIN__VERSION": "TLS12",
+        "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MAX__VERSION": "TLS13",
         "SIGNOZ_TOKENIZER_ROTATION_INTERVAL": "45m",
         "SIGNOZ_TOKENIZER_ROTATION_DURATION": "2m",
         "SIGNOZ_TOKENIZER_LIFETIME_IDLE": "240h",
         "SIGNOZ_TOKENIZER_LIFETIME_MAX": "960h",
+        "SIGNOZ_TOKENIZER_OPAQUE_GC_INTERVAL": "2h",
+        "SIGNOZ_TOKENIZER_OPAQUE_TOKEN_MAX__PER__USER": str(7),
         "SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_SETTINGS_MAX__RESULT__ROWS": "10000",
+        "SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER": "cluster",
         "SIGNOZ_OTEL_COLLECTOR_BATCH_SEND_SIZE": "512",
         "SIGNOZ_OTEL_COLLECTOR_BATCH_SEND_MAX_SIZE": "1024",
         "SIGNOZ_OTEL_COLLECTOR_BATCH_TIMEOUT": "5s",
         "SIGNOZ_OTEL_COLLECTOR_SELF_SCRAPE_INTERVAL": "30s",
+        "SIGNOZ_CACHE_PROVIDER": "memory",
+        "SIGNOZ_CACHE_MEMORY_NUM__COUNTERS": "200000",
+        "SIGNOZ_CACHE_MEMORY_MAX__COST": "134217728",
+        "SIGNOZ_CACHE_REDIS_DB": "0",
+        "SIGNOZ_FLAGGER_CONFIG_BOOLEAN_USE__SPAN__METRICS": "true",
+        "SIGNOZ_FLAGGER_CONFIG_BOOLEAN_KAFKA__SPAN__EVAL": "false",
+        "SIGNOZ_IDENTN_TOKENIZER_ENABLED": "true",
+        "SIGNOZ_IDENTN_TOKENIZER_HEADERS": "Authorization,Sec-WebSocket-Protocol",
+        "SIGNOZ_IDENTN_APIKEY_ENABLED": "true",
+        "SIGNOZ_IDENTN_APIKEY_HEADERS": "SIGNOZ-API-KEY",
+        "SIGNOZ_IDENTN_IMPERSONATION_ENABLED": "false",
+        "SIGNOZ_SERVICEACCOUNT_EMAIL_DOMAIN": "signozserviceaccount.com",
+        "SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED": "true",
+        "SIGNOZ_GATEWAY_URL": "http://localhost:8080",
+        "SIGNOZ_AUDITOR_PROVIDER": "noop",
+        "SIGNOZ_AUDITOR_BUFFER__SIZE": "1000",
+        "SIGNOZ_AUDITOR_BATCH__SIZE": "100",
+        "SIGNOZ_AUDITOR_FLUSH__INTERVAL": "1s",
+        "SIGNOZ_AUDITOR_OTLPHTTP_ENDPOINT": "http://localhost:4318/v1/logs",
+        "SIGNOZ_AUDITOR_OTLPHTTP_INSECURE": "false",
+        "SIGNOZ_AUDITOR_OTLPHTTP_TIMEOUT": "10s",
+        "SIGNOZ_AUDITOR_OTLPHTTP_RETRY_ENABLED": "true",
+        "SIGNOZ_AUDITOR_OTLPHTTP_RETRY_INITIAL__INTERVAL": "5s",
+        "SIGNOZ_AUDITOR_OTLPHTTP_RETRY_MAX__INTERVAL": "30s",
+        "SIGNOZ_AUDITOR_OTLPHTTP_RETRY_MAX__ELAPSED__TIME": "60s",
+        "SIGNOZ_CLOUDINTEGRATION_AGENT_VERSION": "v0.0.8",
     }
     with docker_volume("signoz-aio-advanced-env-appdata") as appdata_volume:
         with container(appdata_volume, env_overrides=env) as runtime:
@@ -495,6 +593,14 @@ def test_advanced_signoz_env_surface_boots_and_reaches_process_env() -> None:
             )
             assert "SIGNOZ_APISERVER_TIMEOUT_DEFAULT=70s" in signoz_env  # nosec B101
             assert "SIGNOZ_EMAILING_ENABLED=true" in signoz_env  # nosec B101
+            assert "SIGNOZ_INSTRUMENTATION_LOGS_LEVEL=warn" in signoz_env  # nosec B101
+            assert (  # nosec B101
+                "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__SMARTHOST=127.0.0.1:25"
+                in signoz_env
+            )
+            assert "SIGNOZ_TOKENIZER_OPAQUE_GC_INTERVAL=2h" in signoz_env  # nosec B101
+            assert "SIGNOZ_AUDITOR_PROVIDER=noop" in signoz_env  # nosec B101
+            assert "SIGNOZ_IDENTN_APIKEY_ENABLED=true" in signoz_env  # nosec B101
             wait_for_container_http(runtime.name, "http://127.0.0.1:13133/")
             collector_env = docker_exec(
                 runtime.name,

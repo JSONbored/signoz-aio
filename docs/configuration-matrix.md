@@ -72,6 +72,7 @@ Status meanings:
 | Setting                                        | Status  | Default                               | Notes                                                                                                       |
 | ---------------------------------------------- | ------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN`         | exposed | `tcp://127.0.0.1:9000`                | Base ClickHouse DSN.                                                                                        |
+| `SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER`     | exposed | `cluster`                             | ClickHouse cluster name used by the SigNoz server.                                                          |
 | `SIGNOZ_TELEMETRYSTORE_MAX__OPEN__CONNS`       | exposed | `100`                                 | SigNoz ClickHouse pool size.                                                                                |
 | `SIGNOZ_TELEMETRYSTORE_MAX__IDLE__CONNS`       | exposed | `50`                                  | SigNoz ClickHouse idle pool size.                                                                           |
 | `SIGNOZ_TELEMETRYSTORE_DIAL__TIMEOUT`          | exposed | `5s`                                  | ClickHouse dial timeout.                                                                                    |
@@ -105,21 +106,108 @@ Status meanings:
 
 ## Email, Cache, And Feature Flags
 
-| Setting                                            | Status  | Default        | Notes                                                                      |
-| -------------------------------------------------- | ------- | -------------- | -------------------------------------------------------------------------- |
-| `SIGNOZ_EMAILING_ENABLED`                          | exposed | `false`        | Enables SMTP email delivery; requires a valid SMTP from address when true. |
-| `SIGNOZ_EMAILING_SMTP_ADDRESS`                     | exposed | `localhost:25` | SMTP host:port.                                                            |
-| `SIGNOZ_EMAILING_SMTP_FROM`                        | exposed | blank          | Sender address.                                                            |
-| `SIGNOZ_EMAILING_SMTP_AUTH_USERNAME`               | exposed | blank          | SMTP username.                                                             |
-| `SIGNOZ_EMAILING_SMTP_AUTH_PASSWORD`               | exposed | blank          | SMTP password.                                                             |
-| `SIGNOZ_EMAILING_SMTP_TLS_ENABLED`                 | exposed | `false`        | SMTP TLS toggle.                                                           |
-| `SIGNOZ_CACHE_PROVIDER`                            | exposed | `memory`       | `redis` requires external Redis.                                           |
-| `SIGNOZ_CACHE_MEMORY_MAX__COST`                    | exposed | `134217728`    | In-memory cache size.                                                      |
-| `SIGNOZ_CACHE_REDIS_HOST`                          | exposed | blank          | External Redis host.                                                       |
-| `SIGNOZ_CACHE_REDIS_PORT`                          | exposed | `6379`         | External Redis port.                                                       |
-| `SIGNOZ_CACHE_REDIS_PASSWORD`                      | exposed | blank          | External Redis password.                                                   |
-| `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_USE__SPAN__METRICS` | exposed | blank          | Optional upstream feature flag.                                            |
-| `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_KAFKA__SPAN__EVAL`  | exposed | blank          | Optional upstream feature flag.                                            |
+| Setting                                            | Status  | Default        | Notes                                                                                    |
+| -------------------------------------------------- | ------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `SIGNOZ_EMAILING_ENABLED`                          | exposed | `false`        | Enables SMTP email delivery; requires a valid SMTP from address when true.               |
+| `SIGNOZ_EMAILING_SMTP_ADDRESS`                     | exposed | `localhost:25` | SMTP host:port.                                                                          |
+| `SIGNOZ_EMAILING_SMTP_FROM`                        | exposed | blank          | Sender address.                                                                          |
+| `SIGNOZ_EMAILING_SMTP_AUTH_USERNAME`               | exposed | blank          | SMTP username.                                                                           |
+| `SIGNOZ_EMAILING_SMTP_AUTH_PASSWORD`               | exposed | blank          | SMTP password.                                                                           |
+| `SIGNOZ_EMAILING_SMTP_TLS_ENABLED`                 | exposed | `false`        | SMTP TLS toggle.                                                                         |
+| `SIGNOZ_CACHE_PROVIDER`                            | exposed | `memory`       | `redis` requires external Redis.                                                         |
+| `SIGNOZ_CACHE_MEMORY_MAX__COST`                    | exposed | `134217728`    | In-memory cache size.                                                                    |
+| `SIGNOZ_CACHE_MEMORY_NUM__COUNTERS`                | exposed | `100000`       | In-memory cache counter count.                                                           |
+| `SIGNOZ_CACHE_REDIS_HOST`                          | exposed | blank          | External Redis host.                                                                     |
+| `SIGNOZ_CACHE_REDIS_PORT`                          | exposed | `6379`         | External Redis port.                                                                     |
+| `SIGNOZ_CACHE_REDIS_DB`                            | exposed | `0`            | External Redis database number.                                                          |
+| `SIGNOZ_CACHE_REDIS_PASSWORD`                      | exposed | blank          | External Redis password.                                                                 |
+| `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_USE__SPAN__METRICS` | exposed | `upstream`     | Optional upstream feature flag; dropdown sentinel leaves the upstream default untouched. |
+| `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_KAFKA__SPAN__EVAL`  | exposed | `upstream`     | Optional upstream feature flag; dropdown sentinel leaves the upstream default untouched. |
+
+## Expanded Upstream v0.120.0 Controls
+
+These are advanced-only leaf settings from upstream `conf/example.yaml` and
+official self-hosted docs that are safe to represent as Unraid fields and
+locally boot-test through environment propagation.
+
+| Setting                                                                      | Status  | Default                                | Notes                                                                       |
+| ---------------------------------------------------------------------------- | ------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| `SIGNOZ_VERSION_BANNER_ENABLED`                                              | exposed | `true`                                 | Startup version banner toggle.                                              |
+| `SIGNOZ_INSTRUMENTATION_LOGS_LEVEL`                                          | exposed | `info`                                 | SigNoz internal instrumentation log level.                                  |
+| `SIGNOZ_INSTRUMENTATION_TRACES_ENABLED`                                      | exposed | `false`                                | SigNoz self-tracing toggle.                                                 |
+| `SIGNOZ_INSTRUMENTATION_TRACES_PROCESSORS_BATCH_EXPORTER_OTLP_ENDPOINT`      | exposed | `localhost:4317`                       | OTLP endpoint for self-tracing.                                             |
+| `SIGNOZ_INSTRUMENTATION_METRICS_ENABLED`                                     | exposed | `true`                                 | SigNoz self-metrics toggle.                                                 |
+| `SIGNOZ_INSTRUMENTATION_METRICS_READERS_PULL_EXPORTER_PROMETHEUS_HOST`       | exposed | `0.0.0.0`                              | Internal self-metrics Prometheus host.                                      |
+| `SIGNOZ_INSTRUMENTATION_METRICS_READERS_PULL_EXPORTER_PROMETHEUS_PORT`       | exposed | `9090`                                 | Internal self-metrics Prometheus port.                                      |
+| `SIGNOZ_ANALYTICS_SEGMENT_KEY`                                               | exposed | blank                                  | Segment key used only when analytics are enabled.                           |
+| `SIGNOZ_STATSREPORTER_INTERVAL`                                              | exposed | `6h`                                   | Stats reporter collection interval.                                         |
+| `SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES`                                    | exposed | `true`                                 | Stats reporter identity/trait collection toggle.                            |
+| `SIGNOZ_QUERIER_CACHE__TTL`                                                  | exposed | `168h`                                 | TTL for cached query results.                                               |
+| `SIGNOZ_QUERIER_FLUX__INTERVAL`                                              | exposed | `5m`                                   | Recent-data interval that SigNoz should not cache.                          |
+| `SIGNOZ_QUERIER_MAX__CONCURRENT__QUERIES`                                    | exposed | `4`                                    | Missing-range query concurrency limit.                                      |
+| `SIGNOZ_PROMETHEUS_TIMEOUT`                                                  | exposed | `2m`                                   | PromQL query timeout.                                                       |
+| `SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_ENABLED`                           | exposed | `true`                                 | Active query tracker toggle.                                                |
+| `SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_PATH`                              | exposed | blank                                  | Optional active query tracker path.                                         |
+| `SIGNOZ_PROMETHEUS_ACTIVE__QUERY__TRACKER_MAX__CONCURRENT`                   | exposed | `20`                                   | Active query tracker concurrency limit.                                     |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_POLL__INTERVAL`                                  | exposed | `1m`                                   | Built-in Alertmanager store sync interval.                                  |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__BY`                                 | exposed | `alertname`                            | Comma-separated alert grouping labels.                                      |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__INTERVAL`                           | exposed | `1m`                                   | Alert group resend interval.                                                |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_ROUTE_GROUP__WAIT`                               | exposed | `1m`                                   | Initial alert group wait.                                                   |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_ALERTS_GC__INTERVAL`                             | exposed | `30m`                                  | Alert garbage collection interval.                                          |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAX`                                    | exposed | `0`                                    | Maximum stored silences; `0` means no limit.                                |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAX__SIZE__BYTES`                       | exposed | `0`                                    | Maximum silences size; `0` means no limit.                                  |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_MAINTENANCE__INTERVAL`                  | exposed | `15m`                                  | Silence maintenance/snapshot interval.                                      |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_SILENCES_RETENTION`                              | exposed | `120h`                                 | Silence retention.                                                          |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_NFLOG_MAINTENANCE__INTERVAL`                     | exposed | `15m`                                  | Notification log maintenance interval.                                      |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_NFLOG_RETENTION`                                 | exposed | `120h`                                 | Notification log retention.                                                 |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__FROM`                               | exposed | blank                                  | Sender address for built-in Alertmanager email notifications.               |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__HELLO`                              | exposed | `localhost`                            | HELO/EHLO hostname for Alertmanager SMTP delivery.                          |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__SMARTHOST`                          | exposed | blank                                  | Alertmanager SMTP host:port.                                                |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__USERNAME`                     | exposed | blank                                  | Alertmanager SMTP username.                                                 |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__PASSWORD`                     | exposed | blank                                  | Alertmanager SMTP password.                                                 |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__PASSWORD_FILE`                | exposed | blank                                  | Alertmanager SMTP password file path inside the container.                  |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__SECRET`                       | exposed | blank                                  | Alertmanager SMTP auth secret.                                              |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__AUTH__IDENTITY`                     | exposed | blank                                  | Alertmanager SMTP PLAIN identity.                                           |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__REQUIRE__TLS`                       | exposed | `true`                                 | Alertmanager SMTP TLS requirement toggle.                                   |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CA__FILE`                      | exposed | blank                                  | Alertmanager SMTP TLS CA file path inside the container.                    |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CERT__FILE`                    | exposed | blank                                  | Alertmanager SMTP TLS client certificate file path inside the container.    |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__KEY__FILE`                     | exposed | blank                                  | Alertmanager SMTP TLS client key file path inside the container.            |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__SERVER__NAME`                  | exposed | blank                                  | Alertmanager SMTP TLS SNI/server name.                                      |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CONFIG_INSECURE__SKIP__VERIFY` | exposed | `false`                                | Alertmanager SMTP TLS verification bypass for trusted internal relays only. |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MIN__VERSION`                  | exposed | `upstream`                             | Dropdown sentinel keeps upstream default, or choose `TLS12`/`TLS13`.        |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__MAX__VERSION`                  | exposed | `upstream`                             | Dropdown sentinel keeps upstream default, or choose `TLS12`/`TLS13`.        |
+| `SIGNOZ_EMAILING_SMTP_HELLO`                                                 | exposed | blank                                  | Optional SMTP HELO/EHLO hostname.                                           |
+| `SIGNOZ_EMAILING_SMTP_AUTH_SECRET`                                           | exposed | blank                                  | Optional SMTP auth secret.                                                  |
+| `SIGNOZ_EMAILING_SMTP_AUTH_IDENTITY`                                         | exposed | blank                                  | Optional SMTP auth identity.                                                |
+| `SIGNOZ_EMAILING_SMTP_TLS_INSECURE__SKIP__VERIFY`                            | exposed | `false`                                | Skip SMTP TLS verification for trusted internal relays only.                |
+| `SIGNOZ_EMAILING_SMTP_TLS_CA__FILE__PATH`                                    | exposed | blank                                  | Optional SMTP TLS CA file path.                                             |
+| `SIGNOZ_EMAILING_SMTP_TLS_CERT__FILE__PATH`                                  | exposed | blank                                  | Optional SMTP TLS client certificate path.                                  |
+| `SIGNOZ_EMAILING_SMTP_TLS_KEY__FILE__PATH`                                   | exposed | blank                                  | Optional SMTP TLS client key path.                                          |
+| `SIGNOZ_EMAILING_TEMPLATES_FORMAT_HEADER_ENABLED`                            | exposed | `false`                                | Email template header toggle.                                               |
+| `SIGNOZ_EMAILING_TEMPLATES_FORMAT_HEADER_LOGO__URL`                          | exposed | blank                                  | Email template header logo URL.                                             |
+| `SIGNOZ_EMAILING_TEMPLATES_FORMAT_HELP_ENABLED`                              | exposed | `false`                                | Email template help block toggle.                                           |
+| `SIGNOZ_EMAILING_TEMPLATES_FORMAT_HELP_EMAIL`                                | exposed | blank                                  | Email template help email address.                                          |
+| `SIGNOZ_EMAILING_TEMPLATES_FORMAT_FOOTER_ENABLED`                            | exposed | `false`                                | Email template footer toggle.                                               |
+| `SIGNOZ_IDENTN_TOKENIZER_ENABLED`                                            | exposed | `true`                                 | Tokenizer identity resolver toggle.                                         |
+| `SIGNOZ_IDENTN_TOKENIZER_HEADERS`                                            | exposed | `Authorization,Sec-WebSocket-Protocol` | Headers used for tokenizer identity resolution.                             |
+| `SIGNOZ_IDENTN_APIKEY_ENABLED`                                               | exposed | `true`                                 | API-key identity resolver toggle.                                           |
+| `SIGNOZ_IDENTN_APIKEY_HEADERS`                                               | exposed | `SIGNOZ-API-KEY`                       | Headers used for API-key identity resolution.                               |
+| `SIGNOZ_IDENTN_IMPERSONATION_ENABLED`                                        | exposed | `false`                                | Dangerous root impersonation mode; advanced-only.                           |
+| `SIGNOZ_SERVICEACCOUNT_EMAIL_DOMAIN`                                         | exposed | `signozserviceaccount.com`             | Service account principal email domain.                                     |
+| `SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED`                                    | exposed | `true`                                 | Service account analytics toggle.                                           |
+| `SIGNOZ_GATEWAY_URL`                                                         | exposed | `http://localhost:8080`                | Gateway URL for deployments using licensed gateway features.                |
+| `SIGNOZ_AUDITOR_PROVIDER`                                                    | exposed | `noop`                                 | Audit event provider.                                                       |
+| `SIGNOZ_AUDITOR_BUFFER__SIZE`                                                | exposed | `1000`                                 | Audit event channel capacity.                                               |
+| `SIGNOZ_AUDITOR_BATCH__SIZE`                                                 | exposed | `100`                                  | Audit export batch size.                                                    |
+| `SIGNOZ_AUDITOR_FLUSH__INTERVAL`                                             | exposed | `1s`                                   | Audit export flush interval.                                                |
+| `SIGNOZ_AUDITOR_OTLPHTTP_ENDPOINT`                                           | exposed | `http://localhost:4318/v1/logs`        | Audit OTLP HTTP endpoint.                                                   |
+| `SIGNOZ_AUDITOR_OTLPHTTP_INSECURE`                                           | exposed | `false`                                | Audit OTLP HTTP insecure transport toggle.                                  |
+| `SIGNOZ_AUDITOR_OTLPHTTP_TIMEOUT`                                            | exposed | `10s`                                  | Audit OTLP HTTP export timeout.                                             |
+| `SIGNOZ_AUDITOR_OTLPHTTP_RETRY_ENABLED`                                      | exposed | `true`                                 | Audit export retry toggle.                                                  |
+| `SIGNOZ_AUDITOR_OTLPHTTP_RETRY_INITIAL__INTERVAL`                            | exposed | `5s`                                   | Audit retry initial interval.                                               |
+| `SIGNOZ_AUDITOR_OTLPHTTP_RETRY_MAX__INTERVAL`                                | exposed | `30s`                                  | Audit retry maximum interval.                                               |
+| `SIGNOZ_AUDITOR_OTLPHTTP_RETRY_MAX__ELAPSED__TIME`                           | exposed | `60s`                                  | Audit retry maximum elapsed time.                                           |
+| `SIGNOZ_CLOUDINTEGRATION_AGENT_VERSION`                                      | exposed | `v0.0.8`                               | Upstream cloud integration agent version.                                   |
 
 ## Auth And Token Lifetimes
 
@@ -137,8 +225,26 @@ Status meanings:
 | `SIGNOZ_TOKENIZER_ROTATION_DURATION`               | exposed          | `1m`      | Previous-token grace period.                       |
 | `SIGNOZ_TOKENIZER_LIFETIME_IDLE`                   | exposed          | `168h`    | Idle session lifetime.                             |
 | `SIGNOZ_TOKENIZER_LIFETIME_MAX`                    | exposed          | `720h`    | Maximum session lifetime.                          |
+| `SIGNOZ_TOKENIZER_OPAQUE_GC_INTERVAL`              | exposed          | `1h`      | Opaque session-token garbage collection interval.  |
 | `SIGNOZ_TOKENIZER_OPAQUE_TOKEN_MAX__PER__USER`     | exposed          | `5`       | Opaque token cap.                                  |
 | `SIGNOZ_JWT_SECRET`                                | deprecated-alias | blank     | Upstream alias; use `SIGNOZ_TOKENIZER_JWT_SECRET`. |
+
+## Upstream Fields Intentionally Not CA-Exposed
+
+| Setting                                                                                                                                                                     | Status                   | Reason                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `SIGNOZ_WEB_ENABLED`                                                                                                                                                        | internal                 | The web UI is the primary AIO entrypoint; disabling it would make the Unraid app look broken.             |
+| `SIGNOZ_WEB_DIRECTORY` / `SIGNOZ_WEB_INDEX`                                                                                                                                 | internal                 | Bound to the upstream web assets copied into the image.                                                   |
+| `SIGNOZ_TELEMETRYSTORE_PROVIDER`                                                                                                                                            | internal                 | The AIO image supports ClickHouse telemetry storage only.                                                 |
+| `SIGNOZ_ALERTMANAGER_PROVIDER`                                                                                                                                              | internal                 | The bundled single-node app uses SigNoz's built-in Alertmanager provider.                                 |
+| `SIGNOZ_TOKENIZER_PROVIDER`                                                                                                                                                 | internal                 | The wrapper manages the JWT tokenizer secret and does not support alternate tokenizers.                   |
+| `SIGNOZ_EMAILING_TEMPLATES_DIRECTORY`                                                                                                                                       | internal                 | Email templates are bundled from the upstream image.                                                      |
+| `SIGNOZ_SHARDER_PROVIDER` / `SIGNOZ_SHARDER_SINGLE_ORG__ID`                                                                                                                 | not-applicable           | Upstream marks sharding experimental; this AIO image is a single-node beginner-first deployment.          |
+| `SIGNOZ_FLAGGER_CONFIG_STRING` / `SIGNOZ_FLAGGER_CONFIG_FLOAT` / `SIGNOZ_FLAGGER_CONFIG_INTEGER` / `SIGNOZ_FLAGGER_CONFIG_OBJECT`                                           | supported-not-CA-exposed | Arbitrary maps are not a good Unraid CA field; specific stable boolean feature flags are exposed instead. |
+| `SIGNOZ_EMAILING_SMTP_HEADERS`                                                                                                                                              | supported-not-CA-exposed | Arbitrary SMTP header maps are not represented safely in the CA form.                                     |
+| `SIGNOZ_AUDITOR_OTLPHTTP_HEADERS`                                                                                                                                           | supported-not-CA-exposed | Arbitrary OTLP HTTP header maps are not represented safely in the CA form.                                |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CA` / `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CERT` / `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__KEY`                | supported-not-CA-exposed | Raw multi-line PEM material is not suitable for a CA variable field; file-path variants are exposed.      |
+| `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CA__REF` / `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__CERT__REF` / `SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__TLS__KEY__REF` | not-applicable           | Secret-manager references are not wired into this single-container Unraid deployment.                     |
 
 ## Bundled ClickHouse And ZooKeeper
 
