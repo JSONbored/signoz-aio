@@ -1,13 +1,16 @@
 # syntax=docker/dockerfile:1@sha256:4a43a54dd1fedceb30ba47e76cfcf2b47304f4161c0caeac2db1c61804ea3c91
+# checkov:skip=CKV_DOCKER_7: Upstream images are pinned by immutable digests instead of mutable tags.
+# checkov:skip=CKV_DOCKER_8: s6-overlay needs root to coordinate bundled SigNoz, ClickHouse, ZooKeeper, and collector services.
 
-ARG UPSTREAM_SIGNOZ_VERSION=v0.117.1@sha256:1e608f65588c1cebe84dd6cfbd0242ba14ebb54598d0edbdb9045112f561cc0f
+ARG UPSTREAM_SIGNOZ_VERSION=v0.117.1
+ARG UPSTREAM_SIGNOZ_DIGEST=sha256:1e608f65588c1cebe84dd6cfbd0242ba14ebb54598d0edbdb9045112f561cc0f
 ARG UPSTREAM_OTELCOL_VERSION=v0.144.2@sha256:cc3e1559f0968f10a27977323c20323ca072ea3858af2233263e82532d551516
-ARG UPSTREAM_CLICKHOUSE_VERSION=26.3.2@sha256:80fdbc9e6ebcb2cc381712744aef3346565fba30a1452570f6d2f4b6b9492bf4
+ARG UPSTREAM_CLICKHOUSE_VERSION=26.3.3@sha256:5cfbc0598ee3bd850ac1b2ab150e6c9ec7b9207f1a97617e015325fb5df053d0
 ARG UPSTREAM_ZOOKEEPER_VERSION=3.9.3@sha256:2982759ec21211d52514154a5c87d2bbe6725d94cfa864cdfea2f7040b7bd365
 ARG HISTOGRAM_QUANTILE_VERSION=v0.0.1
 ARG S6_OVERLAY_VERSION=3.2.1.0
 
-FROM signoz/signoz:${UPSTREAM_SIGNOZ_VERSION} AS signoz
+FROM signoz/signoz:${UPSTREAM_SIGNOZ_VERSION}@${UPSTREAM_SIGNOZ_DIGEST} AS signoz
 
 FROM signoz/signoz-otel-collector:${UPSTREAM_OTELCOL_VERSION} AS otelcol
 
@@ -17,12 +20,14 @@ FROM clickhouse/clickhouse-server:${UPSTREAM_CLICKHOUSE_VERSION}
 
 ARG TARGETARCH
 ARG UPSTREAM_SIGNOZ_VERSION
+ARG UPSTREAM_SIGNOZ_DIGEST
 ARG UPSTREAM_OTELCOL_VERSION
 ARG UPSTREAM_CLICKHOUSE_VERSION
 ARG UPSTREAM_ZOOKEEPER_VERSION
 ARG HISTOGRAM_QUANTILE_VERSION
 ARG S6_OVERLAY_VERSION
 
+# trunk-ignore(hadolint/DL3002)
 USER root
 
 LABEL org.opencontainers.image.title="signoz-aio" \
@@ -30,10 +35,12 @@ LABEL org.opencontainers.image.title="signoz-aio" \
       org.opencontainers.image.source="https://github.com/JSONbored/signoz-aio" \
       org.opencontainers.image.vendor="JSONbored" \
       io.jsonbored.upstream.signoz.version="${UPSTREAM_SIGNOZ_VERSION}" \
+      io.jsonbored.upstream.signoz.digest="${UPSTREAM_SIGNOZ_DIGEST}" \
       io.jsonbored.upstream.otel_collector.version="${UPSTREAM_OTELCOL_VERSION}" \
       io.jsonbored.upstream.clickhouse.version="${UPSTREAM_CLICKHOUSE_VERSION}" \
       io.jsonbored.upstream.zookeeper.version="${UPSTREAM_ZOOKEEPER_VERSION}"
 
+# trunk-ignore(hadolint/DL3008)
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
@@ -71,6 +78,11 @@ RUN find /etc/cont-init.d -type f -exec chmod +x {} \; && \
     chmod +x /opt/bitnami/scripts/zookeeper/*.sh
 
 VOLUME ["/appdata"]
+
+EXPOSE 8080 4317 4318
+
+ENV S6_CMD_WAIT_FOR_SERVICES_MAXTIME=600000
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -fsS http://127.0.0.1:8080/api/v2/readyz >/dev/null || exit 1

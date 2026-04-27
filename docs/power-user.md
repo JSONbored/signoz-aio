@@ -1,25 +1,43 @@
-# Customization Guide
+# Power User Notes
 
-Use this file as the per-app advanced configuration guide in derived repos.
+`signoz-aio` defaults to a self-contained SigNoz install with bundled ClickHouse,
+ZooKeeper, SigNoz, and the SigNoz OpenTelemetry Collector. The advanced settings
+exist for operators who already understand the upstream SigNoz deployment model.
 
-Recommended sections:
+## External Metadata Database
 
-## 1. Internal vs External Services
+The default metadata store is SQLite at `/appdata/signoz/signoz.db`. Set
+`SIGNOZ_SQLSTORE_PROVIDER=postgres` and provide
+`SIGNOZ_SQLSTORE_POSTGRES_DSN` only when you already have an external PostgreSQL
+database ready.
 
-Document which databases, search backends, or sidecars are internal by default and which can be overridden.
+PostgreSQL only replaces SigNoz metadata storage. It does not replace ClickHouse,
+which still stores traces, metrics, logs, and telemetry-derived tables.
 
-## 2. AI Provider Overrides
+## External ClickHouse
 
-Document local providers, OpenAI-compatible endpoints, hosted APIs, and any required model variables.
+Set `SIGNOZ_USE_EXTERNAL_CLICKHOUSE=true` only for advanced deployments where you
+manage ClickHouse outside this container. You must also set the ClickHouse DSN
+and healthcheck URL so the SigNoz service and collector wait on the correct
+endpoint.
 
-## 3. Remote Access
+The default internal ClickHouse and ZooKeeper path is simpler for Unraid, but it
+is heavier than a typical single-service app. Budget RAM, disk, and startup time
+accordingly.
 
-Document required hostname, proxy, CSRF, and trusted-domain settings.
+## Local Host Agent
 
-## 4. Storage Paths
+`SIGNOZ_ENABLE_HOST_AGENT=true` enables an optional local collector for the same
+Unraid host. Host metrics, Docker metrics, and Docker log collection only activate
+when the matching advanced mounts are present.
 
-Document every mapped path and what data it stores.
+Mounting `/var/run/docker.sock` is powerful and sensitive. It gives the container
+Docker control access, so enable it only when the local host telemetry benefit is
+worth that security tradeoff.
 
-## 5. Optional Integrations
+## Collector Overrides
 
-Document sandboxes, web search, telemetry, TTS, auth providers, or any other optional upstream features.
+The collector options expose the upstream ClickHouse DSN, timeout, cluster,
+replication, resource attribute, and low-cardinality exception grouping controls.
+Leave them at the defaults unless you are matching an existing SigNoz deployment
+or a known upstream tuning recommendation.

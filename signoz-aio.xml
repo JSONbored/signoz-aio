@@ -25,6 +25,24 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
 5. Optional: enable the built-in local host agent if you want this same Unraid machine to forward host metrics, Docker metrics, and Docker logs into SigNoz automatically.&#xD;
 &#xD;
 [b]Resource Note:[/b] ClickHouse makes SigNoz powerful, but also heavier on RAM, disk, and startup time than lighter AIO apps.</Overview>
+  <Changes>### 2026-03-31&#xD;
+- Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
+- Standardize package tags and add release automation (#18)&#xD;
+- Initial commit&#xD;
+- Codex/bootstrap signoz aio (#2)&#xD;
+- Codex/bootstrap signoz aio (#3)&#xD;
+- Consolidate CI workflows&#xD;
+- Update non-major infrastructure updates (#7)&#xD;
+- Update docker/build-push-action action to v7 (#10)&#xD;
+- Update docker/login-action action to v4 (#11)&#xD;
+- Update docker/setup-buildx-action action to v4 (#12)&#xD;
+- Update docker/setup-qemu-action action to v4 (#13)&#xD;
+- Codex/fix signoz smoke checks (#14)&#xD;
+- Update clickhouse/clickhouse-server Docker tag to v26 (#9)&#xD;
+- Pin dependencies (#6)&#xD;
+- Codex/fix signoz smoke checks (#15)&#xD;
+- Fix Signoz template sync defaults&#xD;
+- Fix awesome-unraid sync for protected main</Changes>
   <Category>Monitoring: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml</TemplateURL>
@@ -85,7 +103,7 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
   <Config Name="[Auth] Root User Org Name" Target="SIGNOZ_USER_ROOT_ORG_NAME" Default="default" Mode="" Description="Advanced. Organization name for the provisioned root user." Type="Variable" Display="advanced" Required="false" Mask="false">default</Config>
   <Config Name="[Auth] Root User Org ID" Target="SIGNOZ_USER_ROOT_ORG_ID" Default="" Mode="" Description="Advanced. Optional predetermined UUIDv7 for the root user's organization." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="[Host Agent] Host Root Path" Target="/hostfs" Default="/" Mode="ro" Description="Advanced. Host root mount used by the optional local host agent for host metrics collection. Leave at the default when enabling the local host agent on Unraid." Type="Path" Display="advanced" Required="false" Mask="false">/</Config>
-  <Config Name="[Host Agent] Docker Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw" Description="Advanced. Docker socket mount used by the optional local host agent for Docker metrics collection." Type="Path" Display="advanced" Required="false" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="[Host Agent] Docker Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw" Description="Advanced. Docker socket mount used by the optional local host agent for Docker metrics collection. This has security implications because it exposes Docker control access to the container." Type="Path" Display="advanced" Required="false" Mask="false">/var/run/docker.sock</Config>
   <Config Name="[Host Agent] Docker Container Logs Path" Target="/var/lib/docker/containers" Default="/var/lib/docker/containers" Mode="ro" Description="Advanced. Docker containers log directory used by the optional local host agent for container log collection." Type="Path" Display="advanced" Required="false" Mask="false">/var/lib/docker/containers</Config>
   <Config Name="Tokenizer JWT Secret" Target="SIGNOZ_TOKENIZER_JWT_SECRET" Default="" Mode="" Description="Optional. Leave blank to auto-generate a persistent secret on first boot and save it under /appdata/config/generated.env." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="[ClickHouse] Use External ClickHouse" Target="SIGNOZ_USE_EXTERNAL_CLICKHOUSE" Default="false" Mode="" Description="Advanced. Set to true to disable the bundled ClickHouse and ZooKeeper services and use external ClickHouse endpoints instead. When enabled, configure the ClickHouse DSN and healthcheck URL options below." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>

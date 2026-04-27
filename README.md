@@ -145,7 +145,7 @@ For most users, this is the sweet spot:
 
 Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
 
-See [docs/releases.md](/Users/shadowbook/Documents/signoz-aio/docs/releases.md) for the release workflow details.
+See [docs/releases.md](docs/releases.md) for the release workflow details.
 
 If you want to monitor other hosts later, a separate `signoz-agent` companion app still makes sense.
 
@@ -172,7 +172,7 @@ If an app exposes a `/metrics` endpoint, use a host collector to scrape it and f
 
 Starter example:
 
-- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+- [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 
 ### 3. Unraid host + Docker telemetry
 
@@ -180,7 +180,7 @@ If you want host metrics, Docker container metrics, and container logs from the 
 
 Starter example:
 
-- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+- [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
 
 The built-in host agent is auto-generated from the mounts and variables you provide. With the default Unraid paths, it can automatically enable:
 
@@ -205,7 +205,7 @@ This is the best fit for users who want:
 
 ## What This AIO Does Not Bundle
 
-This image is self-contained for the SigNoz core stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from your entire Unraid host or every Docker container on your server by default.
+This image is self-contained for the SigNoz backend stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from every remote host or every service you run.
 
 That means you still need to connect senders such as:
 
@@ -214,13 +214,13 @@ That means you still need to connect senders such as:
 - Prometheus scrape pipelines
 - log shippers or agent-based host collectors
 
-That is only partly true now. This repo can also run an optional built-in local host agent for the same Unraid machine, but it still does not magically monitor remote systems by itself.
+The optional built-in local host agent can collect from the same Unraid machine when you enable the advanced mounts, including the Docker socket. That is useful, but it is also a security tradeoff and it does not replace proper agents for remote systems.
 
 ## Docs And Examples
 
-- [Ingestion guide](/tmp/signoz-aio/docs/ingestion-guide.md)
-- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
-- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+- [Ingestion guide](docs/ingestion-guide.md)
+- [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
+- [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 
 ## Helpful References
 

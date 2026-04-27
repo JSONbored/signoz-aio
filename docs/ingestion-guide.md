@@ -55,7 +55,7 @@ Use a collector with the `prometheus` receiver to scrape apps that expose Promet
 
 Example config:
 
-- [otelcol-prometheus-scrape.yaml](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+- [otelcol-prometheus-scrape.yaml](examples/otelcol-prometheus-scrape.yaml)
 
 Good use cases:
 
@@ -76,7 +76,7 @@ Use the built-in local host agent or a separate host collector with:
 
 Example config:
 
-- [otelcol-docker-host-agent.yaml](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+- [otelcol-docker-host-agent.yaml](examples/otelcol-docker-host-agent.yaml)
 
 This pattern can collect:
 

@@ -14,13 +14,16 @@ Every `main` build publishes:
 
 - `latest`
 - the exact pinned upstream version
-- an explicit packaging line tag like `v0.117.1-aio-v1`
+- the exact release package tag when the current commit is the release target
 - `sha-<commit>`
 
 ## Release flow
 
-1. Trigger **Release / SigNoz-AIO** from `main` with `action=prepare`.
+1. Trigger **Prepare Release / SigNoz-AIO** from `main`.
 2. The workflow computes the next `upstream-aio.N` version and opens a release PR.
 3. Review and merge that PR into `main`.
-4. Trigger **Release / SigNoz-AIO** from `main` again with `action=publish`.
+4. Trigger **Publish Release / SigNoz-AIO** from `main`.
 5. The workflow reads the merged `CHANGELOG.md` entry, creates the Git tag, and publishes the GitHub Release.
+
+The publish workflow requires a successful CI run for the release target commit
+before it creates the tag or GitHub Release.

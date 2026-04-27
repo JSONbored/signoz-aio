@@ -1,12 +1,15 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
 ## v0.117.1-aio.1 - 2026-03-31
+
 ### Features
+
 - Standardize package tags and add release automation (#18)
 
-
 ### Other Changes
+
 - Initial commit
 - Codex/bootstrap signoz aio (#2)
 - Codex/bootstrap signoz aio (#3)
