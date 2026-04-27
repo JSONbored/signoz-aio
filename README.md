@@ -1,4 +1,6 @@
-# SigNoz AIO For Unraid
+# signoz-aio - Unraid Community Application
+
+![signoz-aio](https://socialify.git.ci/JSONbored/signoz-aio/image?custom_description=All-in-one+SigNoz+for+Unraid%3A+a+single+self-hosted+container+bundling+SigNoz+UI%2FAPI%2C+OpenTelemetry+collector%2C+ClickHouse%2C+and+ZooKeeper.&custom_language=Dockerfile&description=1&font=Raleway&forks=1&issues=1&language=1&logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F76905799%3Fs%3D200%26v%3D4&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
 
 `signoz-aio` packages the full self-hosted SigNoz stack into a single Unraid-friendly image and CA app template.
 
