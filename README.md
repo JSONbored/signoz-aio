@@ -1,4 +1,6 @@
-# SigNoz AIO For Unraid
+# signoz-aio - Unraid Community Application
+
+![signoz-aio](https://socialify.git.ci/JSONbored/signoz-aio/image?custom_description=All-in-one+SigNoz+for+Unraid%3A+a+single+self-hosted+container+bundling+SigNoz+UI%2FAPI%2C+OpenTelemetry+collector%2C+ClickHouse%2C+and+ZooKeeper.&custom_language=Dockerfile&description=1&font=Raleway&forks=1&issues=1&language=1&logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F76905799%3Fs%3D200%26v%3D4&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
 
 `signoz-aio` packages the full self-hosted SigNoz stack into a single Unraid-friendly image and CA app template.
 
@@ -82,11 +84,12 @@ The single-image runtime is implemented and validated.
 
 - the image supervises `signoz`, `signoz-otel-collector`, `clickhouse`, and `zookeeper`
 - `linux/amd64` build passes
-- smoke testing passes, including:
+- pytest-backed Docker integration testing covers:
   - first boot
   - telemetry-store migrations
   - OTLP listener readiness
   - restart and persistence
+  - advanced runtime preflight paths
 
 ## First-Run Notes
 
@@ -141,11 +144,11 @@ For most users, this is the sweet spot:
 
 ## Releases
 
-`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.117.1-aio.1`.
+`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.120.0-aio.1`.
 
 Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
 
-See [docs/releases.md](/Users/shadowbook/Documents/signoz-aio/docs/releases.md) for the release workflow details.
+See [docs/releases.md](docs/releases.md) for the release workflow details.
 
 If you want to monitor other hosts later, a separate `signoz-agent` companion app still makes sense.
 
@@ -172,7 +175,7 @@ If an app exposes a `/metrics` endpoint, use a host collector to scrape it and f
 
 Starter example:
 
-- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+- [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 
 ### 3. Unraid host + Docker telemetry
 
@@ -180,7 +183,7 @@ If you want host metrics, Docker container metrics, and container logs from the 
 
 Starter example:
 
-- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
+- [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
 
 The built-in host agent is auto-generated from the mounts and variables you provide. With the default Unraid paths, it can automatically enable:
 
@@ -205,7 +208,7 @@ This is the best fit for users who want:
 
 ## What This AIO Does Not Bundle
 
-This image is self-contained for the SigNoz core stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from your entire Unraid host or every Docker container on your server by default.
+This image is self-contained for the SigNoz backend stack, but observability data still has to come from somewhere. It does not automatically collect telemetry from every remote host or every service you run.
 
 That means you still need to connect senders such as:
 
@@ -214,13 +217,14 @@ That means you still need to connect senders such as:
 - Prometheus scrape pipelines
 - log shippers or agent-based host collectors
 
-That is only partly true now. This repo can also run an optional built-in local host agent for the same Unraid machine, but it still does not magically monitor remote systems by itself.
+The optional built-in local host agent can collect from the same Unraid machine when you enable the advanced mounts, including the Docker socket. That is useful, but it is also a security tradeoff and it does not replace proper agents for remote systems.
 
 ## Docs And Examples
 
-- [Ingestion guide](/tmp/signoz-aio/docs/ingestion-guide.md)
-- [Docker / host collector example](/tmp/signoz-aio/docs/examples/otelcol-docker-host-agent.yaml)
-- [Prometheus scrape collector example](/tmp/signoz-aio/docs/examples/otelcol-prometheus-scrape.yaml)
+- [Ingestion guide](docs/ingestion-guide.md)
+- [Configuration matrix](docs/configuration-matrix.md)
+- [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
+- [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 
 ## Helpful References
 

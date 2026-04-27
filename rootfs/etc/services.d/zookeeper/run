@@ -1,12 +1,14 @@
 #!/command/with-contenv bash
 set -euo pipefail
 
-case "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}" in
-    1|true|TRUE|yes|YES|on|ON)
-        echo "[signoz-aio] External ClickHouse mode enabled; skipping bundled ZooKeeper."
-        exec sleep infinity
-        ;;
-esac
+# shellcheck source=/dev/null
+. /opt/signoz-aio/lib/env.sh
+normalize_blank_env "${AIO_BLANK_AS_UNSET_VARS[@]}"
+
+if is_true "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}"; then
+    aio_log "External ClickHouse mode enabled; skipping bundled ZooKeeper."
+    exec sleep infinity
+fi
 
 export ALLOW_ANONYMOUS_LOGIN="${ALLOW_ANONYMOUS_LOGIN:-yes}"
 export ZOO_SERVER_ID="${ZOO_SERVER_ID:-1}"

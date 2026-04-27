@@ -9,7 +9,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-
+from typing import NoReturn
 
 ROOT = pathlib.Path(".")
 UPSTREAM_FILE = ROOT / "upstream.toml"
@@ -20,7 +20,7 @@ SEMVER_RE = re.compile(
 )
 
 
-def fail(message: str) -> "NoReturn":
+def fail(message: str) -> NoReturn:
     print(message, file=sys.stderr)
     raise SystemExit(1)
 
@@ -30,12 +30,12 @@ def http_json(url: str, headers: dict[str, str] | None = None) -> object:
         url,
         headers={
             "Accept": "application/vnd.github+json, application/json",
-            "User-Agent": "jsonbored-unraid-aio-template",
+            "User-Agent": "jsonbored-signoz-aio",
             **(headers or {}),
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
             return json.load(response)
     except urllib.error.HTTPError as exc:
         fail(f"HTTP error while requesting {url}: {exc.code} {exc.reason}")
@@ -57,9 +57,27 @@ def parse_version(value: str) -> tuple[int, int, int, bool, str]:
     )
 
 
-def version_sort_key(value: str) -> tuple[int, int, int, int, str]:
+def prerelease_sort_key(prerelease: str) -> tuple[tuple[int, object], ...]:
+    parts: list[tuple[int, object]] = []
+    for item in prerelease.split("."):
+        if item.isdigit():
+            parts.append((0, int(item)))
+        else:
+            parts.append((1, item))
+    return tuple(parts)
+
+
+def version_sort_key(
+    value: str,
+) -> tuple[int, int, int, int, tuple[tuple[int, object], ...]]:
     major, minor, patch, is_prerelease, prerelease = parse_version(value)
-    return (major, minor, patch, 0 if is_prerelease else 1, prerelease)
+    return (
+        major,
+        minor,
+        patch,
+        0 if is_prerelease else 1,
+        prerelease_sort_key(prerelease),
+    )
 
 
 def filter_versions(values: list[str], stable_only: bool) -> list[str]:
@@ -82,10 +100,16 @@ def github_headers() -> dict[str, str]:
 
 
 def latest_github_tag(repo: str, stable_only: bool) -> str:
-    data = http_json(f"https://api.github.com/repos/{repo}/tags?per_page=100", github_headers())
+    data = http_json(
+        f"https://api.github.com/repos/{repo}/tags?per_page=100", github_headers()
+    )
     if not isinstance(data, list):
         fail(f"Unexpected GitHub tags response for {repo}")
-    tags = [entry["name"] for entry in data if isinstance(entry, dict) and isinstance(entry.get("name"), str)]
+    tags = [
+        entry["name"]
+        for entry in data
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    ]
     candidates = filter_versions(tags, stable_only)
     if not candidates:
         fail(f"No matching tags found for upstream repo {repo}")
@@ -93,7 +117,9 @@ def latest_github_tag(repo: str, stable_only: bool) -> str:
 
 
 def latest_github_release(repo: str, stable_only: bool) -> str:
-    data = http_json(f"https://api.github.com/repos/{repo}/releases?per_page=100", github_headers())
+    data = http_json(
+        f"https://api.github.com/repos/{repo}/releases?per_page=100", github_headers()
+    )
     if not isinstance(data, list):
         fail(f"Unexpected GitHub releases response for {repo}")
     releases: list[str] = []
@@ -130,37 +156,110 @@ def latest_ghcr_tag(image: str, stable_only: bool) -> str:
     return sorted(candidates, key=version_sort_key)[-1]
 
 
-def read_local_version(config: dict[str, object]) -> str:
-    version_source = str(config.get("version_source", "")).strip()
-    version_key = str(config.get("version_key", "")).strip()
-    if version_source != "dockerfile-arg":
-        fail(f"Unsupported version_source: {version_source}")
-    pattern = re.compile(rf"^\s*ARG\s+{re.escape(version_key)}=(.+?)\s*$")
+def ghcr_digest_for_tag(image: str, tag: str) -> str:
+    token_data = http_json(f"https://ghcr.io/token?scope=repository:{image}:pull")
+    if not isinstance(token_data, dict) or not token_data.get("token"):
+        fail(f"Could not get GHCR token for {image}")
+    token = str(token_data["token"])
+    request = urllib.request.Request(
+        f"https://ghcr.io/v2/{image}/manifests/{tag}",
+        method="HEAD",
+        headers={
+            "Accept": ",".join(
+                [
+                    "application/vnd.oci.image.index.v1+json",
+                    "application/vnd.oci.image.manifest.v1+json",
+                    "application/vnd.docker.distribution.manifest.list.v2+json",
+                    "application/vnd.docker.distribution.manifest.v2+json",
+                ]
+            ),
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "jsonbored-signoz-aio",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
+            digest = response.headers.get("docker-content-digest", "").strip()
+            if digest:
+                return digest
+    except urllib.error.HTTPError as exc:
+        fail(
+            f"HTTP error while requesting GHCR manifest for {image}:{tag}: "
+            f"{exc.code} {exc.reason}"
+        )
+    except urllib.error.URLError as exc:
+        fail(
+            f"Network error while requesting GHCR manifest for {image}:{tag}: {exc.reason}"
+        )
+
+    fail(f"Could not determine digest for GHCR image {image}:{tag}")
+
+
+def dockerhub_digest_for_tag(image: str, tag: str) -> str:
+    token_url = (
+        "https://auth.docker.io/token"
+        f"?service=registry.docker.io&scope=repository:{image}:pull"
+    )
+    token_data = http_json(token_url)
+    if not isinstance(token_data, dict) or not token_data.get("token"):
+        fail(f"Could not get Docker Hub token for {image}")
+
+    request = urllib.request.Request(
+        f"https://registry-1.docker.io/v2/{image}/manifests/{tag}",
+        method="HEAD",
+        headers={
+            "Accept": ",".join(
+                [
+                    "application/vnd.oci.image.index.v1+json",
+                    "application/vnd.oci.image.manifest.v1+json",
+                    "application/vnd.docker.distribution.manifest.list.v2+json",
+                    "application/vnd.docker.distribution.manifest.v2+json",
+                ]
+            ),
+            "Authorization": f"Bearer {token_data['token']}",
+            "User-Agent": "jsonbored-signoz-aio",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
+            digest = response.headers.get("docker-content-digest", "").strip()
+            if digest:
+                return digest
+    except urllib.error.HTTPError as exc:
+        fail(
+            f"HTTP error while requesting Docker Hub manifest for {image}:{tag}: "
+            f"{exc.code} {exc.reason}"
+        )
+    except urllib.error.URLError as exc:
+        fail(
+            f"Network error while requesting Docker Hub manifest for {image}:{tag}: {exc.reason}"
+        )
+
+    fail(f"Could not determine digest for Docker Hub image {image}:{tag}")
+
+
+def read_local_value(arg_name: str) -> str:
+    pattern = re.compile(rf"^\s*ARG\s+{re.escape(arg_name)}=(.+?)\s*$")
     for line in DOCKERFILE.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
         if match:
             return match.group(1)
-    fail(f"Could not find ARG {version_key} in Dockerfile")
+    fail(f"Could not find ARG {arg_name} in Dockerfile")
 
 
-def write_local_version(config: dict[str, object], new_version: str) -> None:
-    version_source = str(config.get("version_source", "")).strip()
-    version_key = str(config.get("version_key", "")).strip()
-    if version_source != "dockerfile-arg":
-        fail(f"Unsupported version_source: {version_source}")
-
-    pattern = re.compile(rf"^(\s*ARG\s+{re.escape(version_key)}=).+?(\s*)$")
+def write_local_value(arg_name: str, new_value: str) -> None:
+    pattern = re.compile(rf"^(\s*ARG\s+{re.escape(arg_name)}=).+?(\s*)$")
     updated_lines: list[str] = []
     changed = False
     for line in DOCKERFILE.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
         if match:
-            updated_lines.append(f"{match.group(1)}{new_version}{match.group(2)}")
+            updated_lines.append(f"{match.group(1)}{new_value}{match.group(2)}")
             changed = True
         else:
             updated_lines.append(line)
     if not changed:
-        fail(f"Could not update ARG {version_key} in Dockerfile")
+        fail(f"Could not update ARG {arg_name} in Dockerfile")
     DOCKERFILE.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
 
 
@@ -196,6 +295,37 @@ def parse_upstream_toml(path: pathlib.Path) -> dict[str, dict[str, object]]:
     return result
 
 
+def latest_version_for_config(upstream: dict[str, object], stable_only: bool) -> str:
+    upstream_type = str(upstream.get("type", "")).strip()
+    if upstream_type == "github-tag":
+        return latest_github_tag(str(upstream.get("repo", "")).strip(), stable_only)
+    if upstream_type == "github-release":
+        return latest_github_release(str(upstream.get("repo", "")).strip(), stable_only)
+    if upstream_type == "ghcr-container-tag":
+        return latest_ghcr_tag(str(upstream.get("image", "")).strip(), stable_only)
+    fail(f"Unsupported upstream type: {upstream_type}")
+
+
+def latest_digest_for_config(upstream: dict[str, object], version: str) -> str:
+    digest_source = str(upstream.get("digest_source", "")).strip()
+    if not digest_source:
+        return ""
+
+    digest_key = str(upstream.get("digest_key", "")).strip()
+    image = str(upstream.get("image", "")).strip()
+    if not digest_key:
+        fail("digest_source is set but digest_key is missing in upstream.toml")
+    if not image:
+        fail("digest_source is set but image is missing in upstream.toml")
+
+    digest_tag = str(upstream.get("digest_tag", "")).strip() or version
+    if digest_source == "ghcr-manifest":
+        return ghcr_digest_for_tag(image, digest_tag)
+    if digest_source == "dockerhub-manifest":
+        return dockerhub_digest_for_tag(image, digest_tag)
+    fail(f"Unsupported digest_source: {digest_source}")
+
+
 def main() -> None:
     if not UPSTREAM_FILE.exists():
         fail("Missing upstream.toml")
@@ -206,23 +336,25 @@ def main() -> None:
     if not isinstance(upstream, dict):
         fail("Invalid upstream.toml: missing [upstream]")
 
-    upstream_type = str(upstream.get("type", "")).strip()
     stable_only = bool(upstream.get("stable_only", True))
-    current_version = read_local_version(upstream)
+    version_key = str(upstream.get("version_key", "")).strip()
+    if not version_key:
+        fail("Invalid upstream.toml: missing [upstream].version_key")
 
-    if upstream_type == "github-tag":
-        latest_version = latest_github_tag(str(upstream.get("repo", "")).strip(), stable_only)
-    elif upstream_type == "github-release":
-        latest_version = latest_github_release(str(upstream.get("repo", "")).strip(), stable_only)
-    elif upstream_type == "ghcr-container-tag":
-        latest_version = latest_ghcr_tag(str(upstream.get("image", "")).strip(), stable_only)
-    else:
-        fail(f"Unsupported upstream type: {upstream_type}")
+    current_version = read_local_value(version_key)
+    latest_version = latest_version_for_config(upstream, stable_only)
 
-    updates_available = latest_version != current_version
+    digest_key = str(upstream.get("digest_key", "")).strip()
+    current_digest = read_local_value(digest_key) if digest_key else ""
+    latest_digest = latest_digest_for_config(upstream, latest_version)
+    updates_available = latest_version != current_version or (
+        latest_digest != "" and latest_digest != current_digest
+    )
 
     if os.environ.get("WRITE_UPSTREAM_VERSION") == "true" and updates_available:
-        write_local_version(upstream, latest_version)
+        write_local_value(version_key, latest_version)
+        if latest_digest and digest_key:
+            write_local_value(digest_key, latest_digest)
 
     release_notes = ""
     if isinstance(notifications, dict):
@@ -230,14 +362,28 @@ def main() -> None:
     if not release_notes and upstream.get("repo"):
         release_notes = f"https://github.com/{upstream['repo']}/releases"
 
+    branch_name = f"codex/upstream-{latest_version}"
+    pr_title = f"chore(deps): bump upstream to {latest_version}"
+    if (
+        latest_version == current_version
+        and latest_digest
+        and latest_digest != current_digest
+    ):
+        branch_name = f"codex/upstream-{latest_version}-digest-refresh"
+        pr_title = f"chore(deps): refresh upstream digest for {latest_version}"
+
     write_outputs(
         {
             "current_version": current_version,
             "latest_version": latest_version,
+            "current_digest": current_digest,
+            "latest_digest": latest_digest,
             "updates_available": "true" if updates_available else "false",
             "strategy": str(upstream.get("strategy", "pr")).strip() or "pr",
             "upstream_name": str(upstream.get("name", "")).strip(),
             "release_notes_url": release_notes,
+            "branch_name": branch_name,
+            "pr_title": pr_title,
         }
     )
 

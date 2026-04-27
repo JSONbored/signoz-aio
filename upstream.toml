@@ -2,8 +2,11 @@
 name = "SigNoz"
 type = "github-tag"
 repo = "SigNoz/signoz"
+image = "signoz/signoz"
 version_source = "dockerfile-arg"
 version_key = "UPSTREAM_SIGNOZ_VERSION"
+digest_source = "dockerhub-manifest"
+digest_key = "UPSTREAM_SIGNOZ_DIGEST"
 strategy = "pr"
 stable_only = true
 
