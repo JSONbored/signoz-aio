@@ -23,7 +23,7 @@ Status meanings:
 | `4317`                        | exposed | `4317`                         | OTLP gRPC ingest port.                                           |
 | `4318`                        | exposed | `4318`                         | OTLP HTTP ingest port.                                           |
 | `/appdata`                    | exposed | `/mnt/user/appdata/signoz-aio` | Single persistent Unraid root.                                   |
-| `SIGNOZ_ENABLE_HOST_AGENT`    | exposed | `false`                        | Optional same-host metrics/logs collector.                       |
+| `SIGNOZ_ENABLE_HOST_AGENT`    | exposed | `false`                        | Optional same-host metrics/logs collector, exposed as advanced.  |
 | `SIGNOZ_TOKENIZER_JWT_SECRET` | exposed | generated                      | Persisted under `/appdata/config/generated.env` when left blank. |
 
 ## AIO Wrapper Controls

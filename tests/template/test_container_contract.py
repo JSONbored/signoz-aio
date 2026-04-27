@@ -114,6 +114,51 @@ def test_secret_like_template_variables_are_masked() -> None:
             )
 
 
+def test_beginner_surface_is_minimal_and_fixed_booleans_are_dropdowns() -> None:
+    always_visible = [
+        config.get("Target")
+        for config in _config_elements()
+        if config.get("Display") == "always"
+    ]
+    assert always_visible == [  # nosec B101
+        "8080",
+        "4317",
+        "4318",
+        "/appdata",
+    ]
+
+    fixed_boolean_targets = {
+        "LOW_CARDINAL_EXCEPTION_GROUPING",
+        "SIGNOZ_ANALYTICS_ENABLED",
+        "SIGNOZ_EMAILING_ENABLED",
+        "SIGNOZ_EMAILING_SMTP_TLS_ENABLED",
+        "SIGNOZ_ENABLE_HOST_AGENT",
+        "SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION",
+        "SIGNOZ_PPROF_ENABLED",
+        "SIGNOZ_STATSREPORTER_ENABLED",
+        "SIGNOZ_USE_EXTERNAL_CLICKHOUSE",
+        "SIGNOZ_USER_PASSWORD_RESET_ALLOW__SELF",
+        "SIGNOZ_USER_ROOT_ENABLED",
+    }
+    configs_by_target = {config.get("Target"): config for config in _config_elements()}
+    for target in fixed_boolean_targets:
+        config = configs_by_target[target]
+        assert config.get("Default") in {  # nosec B101
+            "false|true",
+            "true|false",
+        }, f"{target} should use a pipe-delimited Unraid dropdown"
+
+    expected_dropdowns = {
+        "SIGNOZ_CACHE_PROVIDER": "memory|redis",
+        "SIGNOZ_SQLSTORE_PROVIDER": "sqlite|postgres",
+        "SIGNOZ_SQLSTORE_SQLITE_MODE": "wal|delete",
+        "SIGNOZ_SQLSTORE_SQLITE_TRANSACTION__MODE": "deferred|immediate|exclusive",
+    }
+    for target, expected_default in expected_dropdowns.items():
+        config = configs_by_target[target]
+        assert config.get("Default") == expected_default  # nosec B101
+
+
 def test_required_appdata_paths_are_declared_as_container_volumes() -> None:
     volumes = _dockerfile_volumes()
     assert volumes, "Dockerfile must declare persistent volumes"  # nosec B101
