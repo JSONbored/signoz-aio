@@ -1,12 +1,12 @@
 # Releases
 
-`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.117.1-aio.1`.
+`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.120.0-aio.1`.
 
 ## Version format
 
-- first wrapper release for upstream `v0.117.1`: `v0.117.1-aio.1`
-- second wrapper-only release on the same upstream: `v0.117.1-aio.2`
-- first wrapper release after upgrading upstream: `v0.118.0-aio.1`
+- first wrapper release for upstream `v0.120.0`: `v0.120.0-aio.1`
+- second wrapper-only release on the same upstream: `v0.120.0-aio.2`
+- first wrapper release after upgrading upstream: `v0.121.0-aio.1`
 
 ## Published image tags
 

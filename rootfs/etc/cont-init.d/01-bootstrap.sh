@@ -2,6 +2,10 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+# shellcheck source=/dev/null
+. /opt/signoz-aio/lib/env.sh
+normalize_blank_env "${AIO_BLANK_AS_UNSET_VARS[@]}"
+
 APPDATA_DIR="/appdata"
 CONFIG_DIR="${APPDATA_DIR}/config"
 CLICKHOUSE_DIR="${APPDATA_DIR}/clickhouse"
@@ -47,13 +51,10 @@ generate_host_agent_config() {
 	rm -f "${HOST_AGENT_CONFIG_FILE}"
 	: >"${HOST_AGENT_STATUS_FILE}"
 
-	case "${SIGNOZ_ENABLE_HOST_AGENT:-false}" in
-	1 | true | TRUE | yes | YES | on | ON) ;;
-	*)
+	if ! is_true "${SIGNOZ_ENABLE_HOST_AGENT:-false}"; then
 		echo "disabled" >"${HOST_AGENT_STATUS_FILE}"
 		return
-		;;
-	esac
+	fi
 
 	local metrics_receivers=()
 	local logs_receivers=()

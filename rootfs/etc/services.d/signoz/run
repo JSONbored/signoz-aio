@@ -1,18 +1,17 @@
 #!/command/with-contenv bash
 set -euo pipefail
 
+# shellcheck source=/dev/null
+. /opt/signoz-aio/lib/env.sh
+normalize_blank_env "${AIO_BLANK_AS_UNSET_VARS[@]}"
+validate_runtime_config
+
 ENV_FILE="/appdata/config/generated.env"
-if [ -f "${ENV_FILE}" ]; then
-    set -a
-    . "${ENV_FILE}"
-    set +a
-fi
+load_generated_fallbacks "${ENV_FILE}"
 
 wait_for_clickhouse() {
     local healthcheck_url="${SIGNOZ_CLICKHOUSE_HEALTHCHECK_URL:-http://127.0.0.1:8123/ping}"
-    until curl -fsS "${healthcheck_url}" >/dev/null 2>&1; do
-        sleep 2
-    done
+    wait_for_http_url "${healthcheck_url}" "ClickHouse"
 }
 
 wait_for_clickhouse
@@ -21,11 +20,6 @@ export SIGNOZ_ALERTMANAGER_PROVIDER="${SIGNOZ_ALERTMANAGER_PROVIDER:-signoz}"
 export SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN="${SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN:-tcp://127.0.0.1:9000}"
 export SIGNOZ_SQLSTORE_PROVIDER="${SIGNOZ_SQLSTORE_PROVIDER:-sqlite}"
 export SIGNOZ_SQLSTORE_SQLITE_PATH="${SIGNOZ_SQLSTORE_SQLITE_PATH:-/appdata/signoz/signoz.db}"
-
-if [[ "${SIGNOZ_SQLSTORE_PROVIDER}" == "postgres" && -z "${SIGNOZ_SQLSTORE_POSTGRES_DSN:-}" ]]; then
-    echo "[signoz-aio] SIGNOZ_SQLSTORE_PROVIDER=postgres requires SIGNOZ_SQLSTORE_POSTGRES_DSN to be set." >&2
-    exit 1
-fi
 
 cd /opt/signoz
 exec ./signoz server

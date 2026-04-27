@@ -96,6 +96,11 @@ def test_secret_like_template_variables_are_masked() -> None:
             target.endswith("_PATH")
             or target.endswith("_ENABLED")
             or target.startswith(("MAX_", "MIN_"))
+            or "MAX__TOKEN__LIFETIME" in target
+            or "TOKEN_LIFETIME" in target
+            or "TOKENIZER_LIFETIME" in target
+            or "TOKENIZER_ROTATION" in target
+            or "TOKENIZER_OPAQUE_TOKEN_MAX" in target
             or name.upper().endswith(" PATH")
             or set(default.split("|")) == {"false", "true"}
         ):

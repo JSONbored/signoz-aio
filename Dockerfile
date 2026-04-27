@@ -2,11 +2,11 @@
 # checkov:skip=CKV_DOCKER_7: Upstream images are pinned by immutable digests instead of mutable tags.
 # checkov:skip=CKV_DOCKER_8: s6-overlay needs root to coordinate bundled SigNoz, ClickHouse, ZooKeeper, and collector services.
 
-ARG UPSTREAM_SIGNOZ_VERSION=v0.117.1
-ARG UPSTREAM_SIGNOZ_DIGEST=sha256:1e608f65588c1cebe84dd6cfbd0242ba14ebb54598d0edbdb9045112f561cc0f
-ARG UPSTREAM_OTELCOL_VERSION=v0.144.2@sha256:cc3e1559f0968f10a27977323c20323ca072ea3858af2233263e82532d551516
-ARG UPSTREAM_CLICKHOUSE_VERSION=26.3.3@sha256:5cfbc0598ee3bd850ac1b2ab150e6c9ec7b9207f1a97617e015325fb5df053d0
-ARG UPSTREAM_ZOOKEEPER_VERSION=3.9.3@sha256:2982759ec21211d52514154a5c87d2bbe6725d94cfa864cdfea2f7040b7bd365
+ARG UPSTREAM_SIGNOZ_VERSION=v0.120.0
+ARG UPSTREAM_SIGNOZ_DIGEST=sha256:4f5d05e0023af3c6c8375260d526eaa3032d6ec1fed75d2ce2491f72ea99b5ee
+ARG UPSTREAM_OTELCOL_VERSION=v0.144.3@sha256:79311701ca0d27bad7b5c80d43ea43a2f2dc9169790e19e96b210847786c7b7f
+ARG UPSTREAM_CLICKHOUSE_VERSION=25.5.6@sha256:4536143e22dc9bddb217c7e610f6b7ed5e6efd8fefdbc61acdeadb5d8022213a
+ARG UPSTREAM_ZOOKEEPER_VERSION=3.7.1@sha256:fcc4a3288154ccaa3bdb5ae6dc10180c084d29a8a6a26b62ac8e30a8940dc2e6
 ARG HISTOGRAM_QUANTILE_VERSION=v0.0.1
 ARG S6_OVERLAY_VERSION=3.2.1.0
 
@@ -63,19 +63,17 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     mkdir -p /appdata /opt/signoz /opt/signoz-otel-collector /opt/signoz-aio/config/clickhouse && \
     rm -rf /tmp/* /var/lib/apt/lists/*
 
-COPY --from=signoz /root/signoz /opt/signoz/signoz
+COPY --chmod=755 --from=signoz /root/signoz /opt/signoz/signoz
 COPY --from=signoz /root/templates /opt/signoz/templates
 COPY --from=signoz /root/templates /root/templates
 COPY --from=signoz /etc/signoz/web /etc/signoz/web
-COPY --from=otelcol /signoz-otel-collector /opt/signoz-otel-collector/signoz-otel-collector
+COPY --chmod=755 --from=otelcol /signoz-otel-collector /opt/signoz-otel-collector/signoz-otel-collector
 COPY --from=zookeeper /opt/bitnami /opt/bitnami
 COPY rootfs/ /
 
 RUN find /etc/cont-init.d -type f -exec chmod +x {} \; && \
     find /etc/services.d -type f -name run -exec chmod +x {} \; && \
-    rm -rf /etc/services.d/app /etc/services.d/postgres && \
-    chmod +x /opt/signoz/signoz /opt/signoz-otel-collector/signoz-otel-collector && \
-    chmod +x /opt/bitnami/scripts/zookeeper/*.sh
+    rm -rf /etc/services.d/app /etc/services.d/postgres
 
 VOLUME ["/appdata"]
 

@@ -2,17 +2,18 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+# shellcheck source=/dev/null
+. /opt/signoz-aio/lib/env.sh
+normalize_blank_env "${AIO_BLANK_AS_UNSET_VARS[@]}"
+
 HOST_AGENT_CONFIG="/appdata/config/generated-host-agent.yaml"
 HOST_AGENT_STATUS="/appdata/config/generated-host-agent.status"
 COLLECTOR_BIN="/opt/signoz-otel-collector/signoz-otel-collector"
 
-case "${SIGNOZ_ENABLE_HOST_AGENT:-false}" in
-1 | true | TRUE | yes | YES | on | ON) ;;
-*)
+if ! is_true "${SIGNOZ_ENABLE_HOST_AGENT:-false}"; then
     echo "[signoz-aio] Local host agent disabled."
     exec sleep infinity
-    ;;
-esac
+fi
 
 if [[ ! -f "${HOST_AGENT_CONFIG}" ]]; then
     echo "[signoz-aio] Local host agent enabled, but no compatible host sources were detected."

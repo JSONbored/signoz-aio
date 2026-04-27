@@ -82,11 +82,12 @@ The single-image runtime is implemented and validated.
 
 - the image supervises `signoz`, `signoz-otel-collector`, `clickhouse`, and `zookeeper`
 - `linux/amd64` build passes
-- smoke testing passes, including:
+- pytest-backed Docker integration testing covers:
   - first boot
   - telemetry-store migrations
   - OTLP listener readiness
   - restart and persistence
+  - advanced runtime preflight paths
 
 ## First-Run Notes
 
@@ -141,7 +142,7 @@ For most users, this is the sweet spot:
 
 ## Releases
 
-`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.117.1-aio.1`.
+`signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.120.0-aio.1`.
 
 Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
 
@@ -219,6 +220,7 @@ The optional built-in local host agent can collect from the same Unraid machine 
 ## Docs And Examples
 
 - [Ingestion guide](docs/ingestion-guide.md)
+- [Configuration matrix](docs/configuration-matrix.md)
 - [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
 - [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 
