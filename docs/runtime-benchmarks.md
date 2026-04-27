@@ -23,12 +23,14 @@ Runtime:
 
 - Default first-ready time to `/api/v2/readyz`: `10.2s`
 - Restart-ready time to `/api/v2/readyz`: `16.6s`
-- Idle `docker stats` sample after first readiness: `64.50% CPU`, `727.7 MiB / 15.66 GiB`
+- Idle `docker stats` sample after first readiness: `71.14% CPU`, `1.262 GiB / 15.66 GiB`
 
 Notes:
 
 - CPU is a point-in-time sample immediately after first boot, so ClickHouse and
   migration/background startup work can make it look high. Treat sustained idle
   CPU as a separate release-candidate check.
+- The measured happy path posts OTLP traces, logs, and metrics, then verifies
+  ClickHouse persistence before restart.
 - The remaining largest layers are required upstream payloads: ZooKeeper,
   SigNoz OTel collector, SigNoz web assets, and the SigNoz binary.

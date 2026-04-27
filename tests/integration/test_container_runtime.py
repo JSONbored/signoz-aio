@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -22,6 +23,7 @@ from tests.helpers import (
 
 IMAGE_TAG = "signoz-aio:pytest"
 POSTGRES_IMAGE = "postgres:16-alpine"
+REDIS_IMAGE = "redis:7-alpine"
 pytestmark = pytest.mark.integration
 
 
@@ -232,11 +234,45 @@ def postgres_service(network: str) -> Iterator[str]:
 
 
 @contextmanager
+def redis_service(network: str) -> Iterator[str]:
+    name = f"signoz-aio-redis-{uuid.uuid4().hex[:10]}"
+    run_command(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            name,
+            "--network",
+            network,
+            "--network-alias",
+            "redis",
+            REDIS_IMAGE,
+        ]
+    )
+    try:
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            result = run_command(
+                ["docker", "exec", name, "redis-cli", "ping"],
+                check=False,
+            )
+            if result.stdout.strip() == "PONG":
+                yield name
+                return
+            time.sleep(2)
+        raise AssertionError(f"Redis did not become ready.\n{logs(name)}")
+    finally:
+        run_command(["docker", "rm", "-f", name], check=False)
+
+
+@contextmanager
 def container(
     appdata_volume: str,
     *,
     enable_host_agent: bool = False,
     env_overrides: dict[str, str] | None = None,
+    extra_volumes: list[tuple[str, str, str]] | None = None,
     network: str | None = None,
     network_alias: str | None = None,
     name_prefix: str = "signoz-aio-pytest",
@@ -272,6 +308,9 @@ def container(
     )
     if enable_host_agent:
         command.extend(["-e", "SIGNOZ_ENABLE_HOST_AGENT=true"])
+    if extra_volumes:
+        for host_path, container_path, mode in extra_volumes:
+            command.extend(["-v", f"{host_path}:{container_path}:{mode}"])
     if env_overrides:
         for key, value in env_overrides.items():
             command.extend(["-e", f"{key}={value}"])
@@ -364,6 +403,74 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
                     ]
                 },
             )
+            post_otlp_json(
+                runtime.http_port,
+                "/v1/logs",
+                {
+                    "resourceLogs": [
+                        {
+                            "resource": {
+                                "attributes": [
+                                    {
+                                        "key": "service.name",
+                                        "value": {"stringValue": "signoz-aio-test"},
+                                    }
+                                ]
+                            },
+                            "scopeLogs": [
+                                {
+                                    "logRecords": [
+                                        {
+                                            "timeUnixNano": str(now),
+                                            "severityText": "INFO",
+                                            "body": {
+                                                "stringValue": "signoz-aio-test-log"
+                                            },
+                                        }
+                                    ]
+                                }
+                            ],
+                        }
+                    ]
+                },
+            )
+            post_otlp_json(
+                runtime.http_port,
+                "/v1/metrics",
+                {
+                    "resourceMetrics": [
+                        {
+                            "resource": {
+                                "attributes": [
+                                    {
+                                        "key": "service.name",
+                                        "value": {"stringValue": "signoz-aio-test"},
+                                    }
+                                ]
+                            },
+                            "scopeMetrics": [
+                                {
+                                    "metrics": [
+                                        {
+                                            "name": "signoz_aio_test_metric",
+                                            "description": "SigNoz AIO test metric",
+                                            "unit": "1",
+                                            "gauge": {
+                                                "dataPoints": [
+                                                    {
+                                                        "timeUnixNano": str(now),
+                                                        "asDouble": 42.0,
+                                                    }
+                                                ]
+                                            },
+                                        }
+                                    ]
+                                }
+                            ],
+                        }
+                    ]
+                },
+            )
             wait_for_clickhouse_count(
                 runtime.name,
                 "SELECT count() FROM signoz_traces.signoz_index_v3",
@@ -371,7 +478,12 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
             )
             wait_for_clickhouse_count(
                 runtime.name,
-                "SELECT count() FROM signoz_metrics.samples_v4",
+                "SELECT count() FROM signoz_metrics.samples_v4 WHERE metric_name='signoz_aio_test_metric'",
+                minimum=1,
+            )
+            wait_for_clickhouse_count(
+                runtime.name,
+                "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
                 minimum=1,
             )
 
@@ -388,6 +500,11 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
             wait_for_clickhouse_count(
                 runtime.name,
                 "SELECT count() FROM signoz_traces.signoz_index_v3",
+                minimum=1,
+            )
+            wait_for_clickhouse_count(
+                runtime.name,
+                "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
                 minimum=1,
             )
 
@@ -447,6 +564,28 @@ def test_invalid_external_redis_cache_fails_fast() -> None:
             assert "requires SIGNOZ_CACHE_REDIS_HOST" in output  # nosec B101
 
 
+def test_external_redis_cache_boots_with_local_fixture() -> None:
+    with docker_network("signoz-aio-redis-net") as network:
+        with redis_service(network):
+            env = {
+                "SIGNOZ_CACHE_PROVIDER": "redis",
+                "SIGNOZ_CACHE_REDIS_HOST": "redis",
+                "SIGNOZ_CACHE_REDIS_PORT": "6379",
+                "SIGNOZ_CACHE_REDIS_DB": "0",
+            }
+            with docker_volume("signoz-aio-redis-appdata") as appdata_volume:
+                with container(
+                    appdata_volume, env_overrides=env, network=network
+                ) as runtime:
+                    wait_for_host_http(runtime.name, runtime.ui_port)
+                    signoz_env = docker_exec(
+                        runtime.name,
+                        "pid=$(pgrep -f './signoz server' | head -n1); tr '\\0' '\\n' </proc/${pid}/environ",
+                    )
+                    assert "SIGNOZ_CACHE_PROVIDER=redis" in signoz_env  # nosec B101
+                    assert "SIGNOZ_CACHE_REDIS_HOST=redis" in signoz_env  # nosec B101
+
+
 def test_host_agent_mode_records_source_detection_status_and_prometheus_config() -> (
     None
 ):
@@ -474,6 +613,29 @@ def test_host_agent_mode_records_source_detection_status_and_prometheus_config()
             )
             assert "prometheus/simple" in config  # nosec B101
             assert "127.0.0.1:8080" in config  # nosec B101
+
+
+def test_host_agent_docker_socket_mount_starts_active_collector() -> None:
+    docker_socket = Path("/var/run/docker.sock")
+    if not docker_socket.exists():
+        pytest.skip("Docker socket is unavailable on this host.")
+
+    with docker_volume("signoz-aio-host-agent-docker-appdata") as appdata_volume:
+        with container(
+            appdata_volume,
+            enable_host_agent=True,
+            extra_volumes=[("/var/run/docker.sock", "/var/run/docker.sock", "rw")],
+        ) as runtime:
+            wait_for_host_http(runtime.name, runtime.ui_port)
+            status = docker_exec(
+                runtime.name, "cat /appdata/config/generated-host-agent.status"
+            )
+            assert status == "enabled"  # nosec B101
+            config = read_container_file(
+                runtime.name, "/appdata/config/generated-host-agent.yaml"
+            )
+            assert "docker_stats" in config  # nosec B101
+            wait_for_container_http(runtime.name, "http://127.0.0.1:13134/")
 
 
 def test_advanced_signoz_env_surface_boots_and_reaches_process_env() -> None:
