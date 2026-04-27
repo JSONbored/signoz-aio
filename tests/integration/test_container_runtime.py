@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import uuid
 from collections.abc import Iterator
@@ -24,7 +25,46 @@ from tests.helpers import (
 IMAGE_TAG = "signoz-aio:pytest"
 POSTGRES_IMAGE = "postgres:16-alpine"
 REDIS_IMAGE = "redis:7-alpine"
+SMTP_IMAGE = "python:3.11-alpine"
+ROOT_ORG_ID = "01961575-461c-7668-875f-05d374062bfc"
+ROOT_EMAIL = "root@example.invalid"
+ROOT_PASSWORD = "SignozAioTest1!"  # nosec B105 - integration-only root user
 pytestmark = pytest.mark.integration
+
+SMTP_CAPTURE_SCRIPT = r"""
+import asyncore
+import pathlib
+import smtpd
+import time
+
+out = pathlib.Path("/messages")
+out.mkdir(parents=True, exist_ok=True)
+
+
+class CaptureServer(smtpd.SMTPServer):
+    counter = 0
+
+    def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
+        self.counter += 1
+        body = data.decode("utf-8", "replace") if isinstance(data, bytes) else data
+        message = "\n".join(
+            [
+                f"PEER: {peer}",
+                f"MAIL FROM: {mailfrom}",
+                f"RCPT TO: {','.join(rcpttos)}",
+                "",
+                body,
+            ]
+        )
+        (out / f"{int(time.time() * 1000)}-{self.counter}.eml").write_text(
+            message,
+            encoding="utf-8",
+        )
+
+
+CaptureServer(("0.0.0.0", 1025), None)
+asyncore.loop()
+"""
 
 
 @dataclass
@@ -347,6 +387,315 @@ def post_otlp_json(host_port: int, path: str, payload: dict[str, object]) -> Non
     assert result.returncode == 0, result.stderr  # nosec B101
 
 
+def post_api_json(
+    host_port: int,
+    path: str,
+    payload: dict[str, object],
+    *,
+    token: str | None = None,
+    expected_statuses: set[int] | None = None,
+    timeout: int = 60,
+) -> str:
+    expected_statuses = expected_statuses or {200, 201, 204}
+    body, status = post_api_json_status(
+        host_port,
+        path,
+        payload,
+        token=token,
+        timeout=timeout,
+    )
+    assert status in expected_statuses, body  # nosec B101
+    return body
+
+
+def post_api_json_status(
+    host_port: int,
+    path: str,
+    payload: dict[str, object],
+    *,
+    token: str | None = None,
+    timeout: int = 60,
+) -> tuple[str, int]:
+    command = [
+        "curl",
+        "-sS",
+        "-X",
+        "POST",
+        f"http://127.0.0.1:{host_port}{path}",
+        "-H",
+        "Content-Type: application/json",
+        "-d",
+        json.dumps(payload),
+        "-w",
+        "\n%{http_code}",
+        "--max-time",
+        str(timeout),
+    ]
+    if token:
+        command[5:5] = ["-H", f"Authorization: Bearer {token}"]
+    result = run_command(command, check=False)
+    assert result.returncode == 0, result.stderr  # nosec B101
+    body, status = result.stdout.rsplit("\n", 1)
+    return body, int(status)
+
+
+def wait_for_root_token(
+    host_port: int,
+    *,
+    org_id: str = ROOT_ORG_ID,
+    email: str = ROOT_EMAIL,
+    password: str = ROOT_PASSWORD,
+    timeout: int = 120,
+) -> str:
+    deadline = time.time() + timeout
+    payload = {"email": email, "password": password, "orgId": org_id}
+    last_output = ""
+    while time.time() < deadline:
+        result = run_command(
+            [
+                "curl",
+                "-sS",
+                "-X",
+                "POST",
+                f"http://127.0.0.1:{host_port}/api/v2/sessions/email_password",
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(payload),
+                "-w",
+                "\n%{http_code}",
+            ],
+            check=False,
+        )
+        last_output = result.stdout + result.stderr
+        if result.returncode == 0 and result.stdout.strip():
+            body, status = result.stdout.rsplit("\n", 1)
+            if status == "200":
+                return json.loads(body)["data"]["accessToken"]
+        time.sleep(2)
+    raise AssertionError(f"Root user login did not succeed.\n{last_output}")
+
+
+def root_user_env(
+    *,
+    org_id: str = ROOT_ORG_ID,
+    email: str = ROOT_EMAIL,
+    password: str = ROOT_PASSWORD,
+) -> dict[str, str]:
+    return {
+        "SIGNOZ_USER_ROOT_ENABLED": "true",
+        "SIGNOZ_USER_ROOT_EMAIL": email,
+        "SIGNOZ_USER_ROOT_PASSWORD": password,
+        "SIGNOZ_USER_ROOT_ORG_ID": org_id,
+        "SIGNOZ_USER_ROOT_ORG_NAME": "aio-tests",
+    }
+
+
+@contextmanager
+def smtp_capture_service(network: str) -> Iterator[str]:
+    name = f"signoz-aio-smtp-{uuid.uuid4().hex[:10]}"
+    volume = f"{name}-messages"
+    run_command(["docker", "volume", "create", volume])
+    run_command(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            name,
+            "--network",
+            network,
+            "--network-alias",
+            "smtp",
+            "-v",
+            f"{volume}:/messages",
+            SMTP_IMAGE,
+            "python",
+            "-u",
+            "-c",
+            SMTP_CAPTURE_SCRIPT,
+        ]
+    )
+    try:
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            result = run_command(
+                [
+                    "docker",
+                    "exec",
+                    name,
+                    "python",
+                    "-c",
+                    "import socket; s=socket.create_connection(('127.0.0.1',1025),2); s.close()",
+                ],
+                check=False,
+            )
+            if result.returncode == 0:
+                yield name
+                return
+            time.sleep(2)
+        raise AssertionError(
+            f"SMTP capture service did not become ready.\n{logs(name)}"
+        )
+    finally:
+        run_command(["docker", "rm", "-f", name], check=False)
+        run_command(["docker", "volume", "rm", "-f", volume], check=False)
+
+
+def smtp_messages(name: str) -> str:
+    return run_command(
+        [
+            "docker",
+            "exec",
+            name,
+            "python",
+            "-c",
+            "from pathlib import Path; print('\\n---MESSAGE---\\n'.join(p.read_text(encoding='utf-8', errors='replace') for p in sorted(Path('/messages').glob('*.eml'))))",
+        ],
+        check=False,
+    ).stdout
+
+
+def wait_for_smtp_message(
+    name: str, required_fragments: list[str], timeout: int = 90
+) -> str:
+    deadline = time.time() + timeout
+    text = ""
+    while time.time() < deadline:
+        text = smtp_messages(name)
+        if all(fragment in text for fragment in required_fragments):
+            return text
+        time.sleep(2)
+    raise AssertionError(
+        f"SMTP capture did not receive expected fragments {required_fragments}.\n{text}"
+    )
+
+
+def wait_for_alertmanager_channel_test(
+    host_port: int,
+    token: str,
+    payload: dict[str, object],
+    *,
+    timeout: int = 150,
+) -> None:
+    deadline = time.time() + timeout
+    last_body = ""
+    while time.time() < deadline:
+        body, status = post_api_json_status(
+            host_port,
+            "/api/v1/channels/test",
+            payload,
+            token=token,
+        )
+        if status == 204:
+            return
+        last_body = body
+        assert status == 404, body  # nosec B101
+        time.sleep(5)
+    raise AssertionError(
+        f"Alertmanager test channel did not become ready.\n{last_body}"
+    )
+
+
+def emit_telemetry_batch(host_port: int, marker: str, index: int) -> None:
+    now = time.time_ns()
+    post_otlp_json(
+        host_port,
+        "/v1/traces",
+        {
+            "resourceSpans": [
+                {
+                    "resource": {
+                        "attributes": [
+                            {
+                                "key": "service.name",
+                                "value": {"stringValue": marker},
+                            }
+                        ]
+                    },
+                    "scopeSpans": [
+                        {
+                            "spans": [
+                                {
+                                    "traceId": f"{index + 1:032x}",
+                                    "spanId": f"{index + 1:016x}",
+                                    "name": f"{marker}-span-{index}",
+                                    "startTimeUnixNano": str(now),
+                                    "endTimeUnixNano": str(now + 1000000),
+                                }
+                            ]
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    post_otlp_json(
+        host_port,
+        "/v1/logs",
+        {
+            "resourceLogs": [
+                {
+                    "resource": {
+                        "attributes": [
+                            {
+                                "key": "service.name",
+                                "value": {"stringValue": marker},
+                            }
+                        ]
+                    },
+                    "scopeLogs": [
+                        {
+                            "logRecords": [
+                                {
+                                    "timeUnixNano": str(now),
+                                    "severityText": "INFO",
+                                    "body": {"stringValue": f"{marker}-log-{index}"},
+                                }
+                            ]
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    post_otlp_json(
+        host_port,
+        "/v1/metrics",
+        {
+            "resourceMetrics": [
+                {
+                    "resource": {
+                        "attributes": [
+                            {
+                                "key": "service.name",
+                                "value": {"stringValue": marker},
+                            }
+                        ]
+                    },
+                    "scopeMetrics": [
+                        {
+                            "metrics": [
+                                {
+                                    "name": f"{marker}_metric",
+                                    "gauge": {
+                                        "dataPoints": [
+                                            {
+                                                "timeUnixNano": str(now),
+                                                "asDouble": float(index),
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+
+
 def test_happy_path_boot_ingests_persists_and_restarts() -> None:
     with docker_volume("signoz-aio-appdata") as appdata_volume:
         with container(appdata_volume) as runtime:
@@ -584,6 +933,92 @@ def test_external_redis_cache_boots_with_local_fixture() -> None:
                     )
                     assert "SIGNOZ_CACHE_PROVIDER=redis" in signoz_env  # nosec B101
                     assert "SIGNOZ_CACHE_REDIS_HOST=redis" in signoz_env  # nosec B101
+
+
+def test_signoz_invite_email_delivery_with_local_smtp_fixture() -> None:
+    with docker_network("signoz-aio-email-net") as network:
+        with smtp_capture_service(network) as smtp:
+            env = root_user_env()
+            env.update(
+                {
+                    "SIGNOZ_EMAILING_ENABLED": "true",
+                    "SIGNOZ_EMAILING_SMTP_ADDRESS": "smtp:1025",
+                    "SIGNOZ_EMAILING_SMTP_FROM": "signoz@example.invalid",
+                    "SIGNOZ_EMAILING_SMTP_HELLO": "signoz-aio.local",
+                    "SIGNOZ_EMAILING_SMTP_TLS_ENABLED": "false",
+                }
+            )
+            with docker_volume("signoz-aio-email-appdata") as appdata_volume:
+                with container(
+                    appdata_volume, env_overrides=env, network=network
+                ) as runtime:
+                    wait_for_host_http(runtime.name, runtime.ui_port)
+                    token = wait_for_root_token(runtime.ui_port)
+                    post_api_json(
+                        runtime.ui_port,
+                        "/api/v1/invite",
+                        {
+                            "name": "Invitee",
+                            "email": "invitee@example.invalid",
+                            "role": "VIEWER",
+                            "frontendBaseUrl": "http://127.0.0.1:8080",
+                        },
+                        token=token,
+                        expected_statuses={201},
+                    )
+                    message = wait_for_smtp_message(
+                        smtp,
+                        [
+                            "MAIL FROM: signoz@example.invalid",
+                            "RCPT TO: invitee@example.invalid",
+                            "You're Invited to Join SigNoz",
+                        ],
+                    )
+                    assert "http://127.0.0.1:8080" in message  # nosec B101
+
+
+def test_alertmanager_email_channel_delivery_with_local_smtp_fixture() -> None:
+    with docker_network("signoz-aio-alert-email-net") as network:
+        with smtp_capture_service(network) as smtp:
+            env = root_user_env()
+            env.update(
+                {
+                    "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__FROM": "alerts@example.invalid",
+                    "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__HELLO": "signoz-aio.local",
+                    "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__SMARTHOST": "smtp:1025",
+                    "SIGNOZ_ALERTMANAGER_SIGNOZ_GLOBAL_SMTP__REQUIRE__TLS": "false",
+                    "SIGNOZ_ALERTMANAGER_SIGNOZ_POLL__INTERVAL": "5s",
+                }
+            )
+            with docker_volume("signoz-aio-alert-email-appdata") as appdata_volume:
+                with container(
+                    appdata_volume, env_overrides=env, network=network
+                ) as runtime:
+                    wait_for_host_http(runtime.name, runtime.ui_port)
+                    token = wait_for_root_token(runtime.ui_port)
+                    wait_for_alertmanager_channel_test(
+                        runtime.ui_port,
+                        token,
+                        {
+                            "name": "email-aio-test",
+                            "email_configs": [
+                                {
+                                    "send_resolved": True,
+                                    "to": "alerts-to@example.invalid",
+                                    "html": "SigNoz AIO Alertmanager test {{ .CommonLabels.alertname }}",
+                                }
+                            ],
+                        },
+                    )
+                    wait_for_smtp_message(
+                        smtp,
+                        [
+                            "MAIL FROM: alerts@example.invalid",
+                            "RCPT TO: alerts-to@example.invalid",
+                            "Test Alert (email-aio-test)",
+                            "SigNoz AIO Alertmanager test",
+                        ],
+                    )
 
 
 def test_host_agent_mode_records_source_detection_status_and_prometheus_config() -> (
@@ -835,3 +1270,40 @@ def test_external_clickhouse_mode_disables_bundled_clickhouse_and_zookeeper() ->
                         assert "skipping bundled ClickHouse" in output  # nosec B101
                         assert "skipping bundled ZooKeeper" in output  # nosec B101
                         wait_for_container_tcp(runtime.name, 4317)
+
+
+def test_sustained_ingest_records_resource_samples() -> None:
+    soak_seconds = max(int(os.environ.get("AIO_PYTEST_SOAK_SECONDS", "45")), 15)
+    marker = f"signoz_aio_soak_{uuid.uuid4().hex[:8]}"
+    with docker_volume("signoz-aio-soak-appdata") as appdata_volume:
+        with container(appdata_volume) as runtime:
+            wait_for_host_http(runtime.name, runtime.ui_port)
+            wait_for_container_http(runtime.name, "http://127.0.0.1:13133/")
+
+            start = time.time()
+            samples: list[str] = []
+            index = 0
+            while time.time() - start < soak_seconds:
+                emit_telemetry_batch(runtime.http_port, marker, index)
+                samples.append(stats_snapshot(runtime.name))
+                index += 1
+                time.sleep(3)
+
+            wait_for_clickhouse_count(
+                runtime.name,
+                f"SELECT count() FROM signoz_logs.logs_v2 WHERE body LIKE '{marker}-log-%'",  # nosec B608 - marker is generated by this test.
+                minimum=index,
+            )
+            wait_for_clickhouse_count(
+                runtime.name,
+                f"SELECT count() FROM signoz_metrics.samples_v4 WHERE metric_name='{marker}_metric'",  # nosec B608 - marker is generated by this test.
+                minimum=index,
+            )
+            wait_for_clickhouse_count(
+                runtime.name,
+                f"SELECT count() FROM signoz_traces.signoz_index_v3 WHERE serviceName='{marker}'",  # nosec B608 - marker is generated by this test.
+                minimum=index,
+            )
+            print(f"soak_seconds={soak_seconds}")
+            print(f"soak_batches={index}")
+            print(f"soak_stats_samples={json.dumps(samples)}")
