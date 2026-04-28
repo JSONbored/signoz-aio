@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [v0.120.0-aio.2](https://github.com/JSONbored/signoz-aio/releases/tag/v0.120.0-aio.2) - 2026-04-28
+### Fixes
+- Require explicit host agent mounts by @JSONbored in [#34](https://github.com/JSONbored/signoz-aio/pull/34)
+
 
 ## [v0.120.0-aio.1](https://github.com/JSONbored/signoz-aio/releases/tag/v0.120.0-aio.1) - 2026-04-28
 
