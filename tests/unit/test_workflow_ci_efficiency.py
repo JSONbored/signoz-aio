@@ -38,3 +38,18 @@ def test_local_actions_participate_in_ci_change_detection_and_pin_checks() -> No
     assert (
         'pathlib.Path(".github/actions").glob("*/action.yml")' in workflow
     )  # nosec B101
+
+
+def test_dockerhub_publish_uses_variable_with_secret_fallback() -> None:
+    workflow = BUILD_WORKFLOW.read_text()
+
+    assert (  # nosec B101
+        "DOCKERHUB_IMAGE_NAME: ${{ vars.DOCKERHUB_IMAGE_NAME }}" in workflow
+    )
+    assert (  # nosec B101
+        "DOCKERHUB_IMAGE_NAME_SECRET: ${{ secrets.DOCKERHUB_IMAGE_NAME }}" in workflow
+    )
+    assert (  # nosec B101
+        'resolved_image_name="${DOCKERHUB_IMAGE_NAME:-${DOCKERHUB_IMAGE_NAME_SECRET}}"'
+        in workflow
+    )
