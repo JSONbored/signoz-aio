@@ -27,11 +27,7 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
 [b]Resource Note:[/b] ClickHouse makes SigNoz powerful, but also heavier on RAM, disk, and startup time than lighter AIO apps.</Overview>
   <Changes>### 2026-04-28&#xD;
 - Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
-- Sync bundled images from SigNoz compose (#31) by @JSONbored in [#31](https://github.com/JSONbored/signoz-aio/pull/31)&#xD;
-- Rebaseline the AIO template and runtime (#27) by @JSONbored in [#27](https://github.com/JSONbored/signoz-aio/pull/27)&#xD;
-- Skip no-op release drafts by @JSONbored in [#21](https://github.com/JSONbored/signoz-aio/pull/21)&#xD;
-- Make releases manual and gate heavy workflows by @JSONbored in [#24](https://github.com/JSONbored/signoz-aio/pull/24)&#xD;
-- Harden publish and changelog range (#26) by @JSONbored in [#26](https://github.com/JSONbored/signoz-aio/pull/26)</Changes>
+- Require explicit host agent mounts by @JSONbored in [#34](https://github.com/JSONbored/signoz-aio/pull/34)</Changes>
   <Category>Monitoring: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml</TemplateURL>
