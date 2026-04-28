@@ -1,20 +1,22 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
 ## [v0.120.0-aio.1](https://github.com/JSONbored/signoz-aio/releases/tag/v0.120.0-aio.1) - 2026-04-28
+
 ### CI
+
 - Sync bundled images from SigNoz compose (#31) by @JSONbored in [#31](https://github.com/JSONbored/signoz-aio/pull/31)
 
-
 ### Features
+
 - Rebaseline the AIO template and runtime (#27) by @JSONbored in [#27](https://github.com/JSONbored/signoz-aio/pull/27)
 
-
 ### Fixes
+
 - Skip no-op release drafts by @JSONbored in [#21](https://github.com/JSONbored/signoz-aio/pull/21)
 - Make releases manual and gate heavy workflows by @JSONbored in [#24](https://github.com/JSONbored/signoz-aio/pull/24)
 - Harden publish and changelog range (#26) by @JSONbored in [#26](https://github.com/JSONbored/signoz-aio/pull/26)
-
 
 ## v0.117.1-aio.1 - 2026-03-31
 

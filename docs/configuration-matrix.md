@@ -41,7 +41,7 @@ Status meanings:
 | `SIGNOZ_GLOBAL_EXTERNAL__URL`                   | exposed  | blank             | Public UI URL for links and reverse proxy setups.       |
 | `SIGNOZ_GLOBAL_INGESTION__URL`                  | exposed  | blank             | Public ingestion URL when it differs from the UI URL.   |
 | `SIGNOZ_ANALYTICS_ENABLED`                      | exposed  | `false`           | Upstream Segment analytics toggle.                      |
-| `SIGNOZ_STATSREPORTER_ENABLED`                  | exposed  | `true`            | Upstream stats reporter toggle.                         |
+| `SIGNOZ_STATSREPORTER_ENABLED`                  | exposed  | `false`           | Upstream stats reporter toggle; privacy opt-in.         |
 | `SIGNOZ_APISERVER_TIMEOUT_DEFAULT`              | exposed  | `60s`             | Default API request timeout.                            |
 | `SIGNOZ_APISERVER_TIMEOUT_MAX`                  | exposed  | `600s`            | Maximum API request timeout.                            |
 | `SIGNOZ_APISERVER_TIMEOUT_EXCLUDED__ROUTES`     | exposed  | upstream defaults | Comma-separated timeout exclusions.                     |
@@ -95,14 +95,14 @@ Status meanings:
 
 ## Host Agent
 
-| Setting                                        | Status  | Default                      | Notes                                              |
-| ---------------------------------------------- | ------- | ---------------------------- | -------------------------------------------------- |
-| `/hostfs`                                      | exposed | `/`                          | Optional host metrics mount.                       |
-| `/var/run/docker.sock`                         | exposed | `/var/run/docker.sock`       | Optional Docker metrics mount; security-sensitive. |
-| `/var/lib/docker/containers`                   | exposed | `/var/lib/docker/containers` | Optional Docker log mount.                         |
-| `SIGNOZ_HOST_AGENT_PROMETHEUS_TARGETS`         | exposed | blank                        | Comma-separated local scrape targets.              |
-| `SIGNOZ_HOST_AGENT_PROMETHEUS_METRICS_PATH`    | exposed | `/metrics`                   | Metrics path for simple scrape targets.            |
-| `SIGNOZ_HOST_AGENT_PROMETHEUS_SCRAPE_INTERVAL` | exposed | `30s`                        | Scrape interval for simple targets.                |
+| Setting                                        | Status  | Default    | Notes                                                                      |
+| ---------------------------------------------- | ------- | ---------- | -------------------------------------------------------------------------- |
+| `/hostfs`                                      | exposed | blank      | Optional host metrics mount; explicitly set to `/` only when needed.       |
+| `/var/run/docker.sock`                         | exposed | blank      | Optional Docker metrics mount; security-sensitive Docker control access.   |
+| `/var/lib/docker/containers`                   | exposed | blank      | Optional Docker log mount; explicitly set to `/var/lib/docker/containers`. |
+| `SIGNOZ_HOST_AGENT_PROMETHEUS_TARGETS`         | exposed | blank      | Comma-separated local scrape targets.                                      |
+| `SIGNOZ_HOST_AGENT_PROMETHEUS_METRICS_PATH`    | exposed | `/metrics` | Metrics path for simple scrape targets.                                    |
+| `SIGNOZ_HOST_AGENT_PROMETHEUS_SCRAPE_INTERVAL` | exposed | `30s`      | Scrape interval for simple targets.                                        |
 
 ## Email, Cache, And Feature Flags
 
@@ -141,7 +141,7 @@ locally boot-test through environment propagation.
 | `SIGNOZ_INSTRUMENTATION_METRICS_READERS_PULL_EXPORTER_PROMETHEUS_PORT`       | exposed | `9090`                                 | Internal self-metrics Prometheus port.                                      |
 | `SIGNOZ_ANALYTICS_SEGMENT_KEY`                                               | exposed | blank                                  | Segment key used only when analytics are enabled.                           |
 | `SIGNOZ_STATSREPORTER_INTERVAL`                                              | exposed | `6h`                                   | Stats reporter collection interval.                                         |
-| `SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES`                                    | exposed | `true`                                 | Stats reporter identity/trait collection toggle.                            |
+| `SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES`                                    | exposed | `false`                                | Stats reporter identity/trait collection toggle; privacy opt-in.            |
 | `SIGNOZ_QUERIER_CACHE__TTL`                                                  | exposed | `168h`                                 | TTL for cached query results.                                               |
 | `SIGNOZ_QUERIER_FLUX__INTERVAL`                                              | exposed | `5m`                                   | Recent-data interval that SigNoz should not cache.                          |
 | `SIGNOZ_QUERIER_MAX__CONCURRENT__QUERIES`                                    | exposed | `4`                                    | Missing-range query concurrency limit.                                      |
@@ -194,7 +194,7 @@ locally boot-test through environment propagation.
 | `SIGNOZ_IDENTN_APIKEY_HEADERS`                                               | exposed | `SIGNOZ-API-KEY`                       | Headers used for API-key identity resolution.                               |
 | `SIGNOZ_IDENTN_IMPERSONATION_ENABLED`                                        | exposed | `false`                                | Dangerous root impersonation mode; advanced-only.                           |
 | `SIGNOZ_SERVICEACCOUNT_EMAIL_DOMAIN`                                         | exposed | `signozserviceaccount.com`             | Service account principal email domain.                                     |
-| `SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED`                                    | exposed | `true`                                 | Service account analytics toggle.                                           |
+| `SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED`                                    | exposed | `false`                                | Service account analytics toggle; privacy opt-in.                           |
 | `SIGNOZ_GATEWAY_URL`                                                         | exposed | `http://localhost:8080`                | Gateway URL for deployments using licensed gateway features.                |
 | `SIGNOZ_AUDITOR_PROVIDER`                                                    | exposed | `noop`                                 | Audit event provider.                                                       |
 | `SIGNOZ_AUDITOR_BUFFER__SIZE`                                                | exposed | `1000`                                 | Audit event channel capacity.                                               |

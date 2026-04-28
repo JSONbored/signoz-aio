@@ -214,6 +214,19 @@ REQUIRED_TARGETS = {
     "ZOO_PROMETHEUS_METRICS_PORT_NUMBER",
 }
 
+OPTIONAL_SENSITIVE_PATH_TARGETS = {
+    "/hostfs": "ro",
+    "/var/lib/docker/containers": "ro",
+    "/var/run/docker.sock": "rw",
+}
+
+PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS = {
+    "SIGNOZ_ANALYTICS_ENABLED",
+    "SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED",
+    "SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES",
+    "SIGNOZ_STATSREPORTER_ENABLED",
+}
+
 
 def resolve_template_path() -> Path:
     explicit = os.environ.get("TEMPLATE_XML", "").strip()
@@ -327,10 +340,14 @@ def main() -> int:
 
     invalid_option_configs: list[str] = []
     invalid_pipe_configs: list[str] = []
-    targets = {
-        config.attrib["Target"]
-        for config in root.findall(".//Config")
+    configs = root.findall(".//Config")
+    configs_by_target = {
+        config.attrib["Target"]: config
+        for config in configs
         if config.attrib.get("Target")
+    }
+    targets = {
+        config.attrib["Target"] for config in configs if config.attrib.get("Target")
     }
     missing_targets = sorted(REQUIRED_TARGETS - targets)
     if missing_targets:
@@ -342,7 +359,37 @@ def main() -> int:
             print(f"  - {target}", file=sys.stderr)
         return 1
 
-    for config in root.findall(".//Config"):
+    for target, expected_mode in OPTIONAL_SENSITIVE_PATH_TARGETS.items():
+        config = configs_by_target.get(target)
+        if config is None:
+            continue
+
+        selected = (config.text or "").strip()
+        default = config.attrib.get("Default", "")
+        if (
+            config.attrib.get("Type") != "Path"
+            or config.attrib.get("Display") != "advanced"
+            or config.attrib.get("Required") != "false"
+            or config.attrib.get("Mode") != expected_mode
+            or default
+            or selected
+        ):
+            return fail(
+                f"{xml_path.name} optional sensitive path {target} must be advanced, optional, mode={expected_mode}, and blank by default"
+            )
+
+    for target in PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS:
+        config = configs_by_target.get(target)
+        if config is None:
+            continue
+
+        selected = (config.text or "").strip()
+        if config.attrib.get("Default") != "false|true" or selected != "false":
+            return fail(
+                f"{xml_path.name} privacy-sensitive toggle {target} must default to false"
+            )
+
+    for config in configs:
         name = config.attrib.get("Name", config.attrib.get("Target", "<unnamed>"))
         if config.findall("Option"):
             invalid_option_configs.append(name)

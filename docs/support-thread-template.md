@@ -28,7 +28,8 @@ single homelab-friendly template.
 - Telemetry still has to be sent into SigNoz. This app does not automatically
   instrument every service you run.
 - The optional local host agent can collect host and Docker telemetry from the
-  same Unraid machine, but mounting the Docker socket has security implications.
+  same Unraid machine after you explicitly populate the advanced host/Docker
+  path fields. Mounting the Docker socket has security implications.
 - Advanced external ClickHouse and PostgreSQL settings are exposed for operators
   who already understand those services.
 
