@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 BUILD_WORKFLOW = Path(".github/workflows/build.yml")
+RELEASE_WORKFLOW = Path(".github/workflows/release.yml")
 PYTEST_ACTION = Path(".github/actions/run-pytest/action.yml")
+ALLOWED_CREATE_PULL_REQUEST_REF = (
+    "peter-evans/create-pull-request@"
+    "c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0"
+)
 
 
 def test_pytest_jobs_use_shared_local_action() -> None:
@@ -53,3 +58,11 @@ def test_dockerhub_publish_uses_variable_with_secret_fallback() -> None:
         'resolved_image_name="${DOCKERHUB_IMAGE_NAME:-${DOCKERHUB_IMAGE_NAME_SECRET}}"'
         in workflow
     )
+
+
+def test_workflows_use_org_allowed_create_pull_request_pin() -> None:
+    for workflow_path in (BUILD_WORKFLOW, RELEASE_WORKFLOW):
+        workflow = workflow_path.read_text()
+
+        assert ALLOWED_CREATE_PULL_REQUEST_REF in workflow  # nosec B101
+        assert "peter-evans/create-pull-request@5f6978" not in workflow  # nosec B101
