@@ -10,5 +10,11 @@ digest_key = "UPSTREAM_SIGNOZ_DIGEST"
 strategy = "pr"
 stable_only = true
 
+[compose_dependencies]
+path = "deploy/docker/docker-compose.yaml"
+UPSTREAM_OTELCOL_VERSION = "signoz/signoz-otel-collector"
+UPSTREAM_CLICKHOUSE_VERSION = "clickhouse/clickhouse-server"
+UPSTREAM_ZOOKEEPER_VERSION = "signoz/zookeeper"
+
 [notifications]
 release_notes_url = "https://github.com/SigNoz/signoz/releases"

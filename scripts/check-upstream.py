@@ -9,6 +9,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from typing import NoReturn
 
 ROOT = pathlib.Path(".")
@@ -37,6 +38,24 @@ def http_json(url: str, headers: dict[str, str] | None = None) -> object:
     try:
         with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
             return json.load(response)
+    except urllib.error.HTTPError as exc:
+        fail(f"HTTP error while requesting {url}: {exc.code} {exc.reason}")
+    except urllib.error.URLError as exc:
+        fail(f"Network error while requesting {url}: {exc.reason}")
+
+
+def http_text(url: str, headers: dict[str, str] | None = None) -> str:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "text/plain, application/octet-stream",
+            "User-Agent": "jsonbored-signoz-aio",
+            **(headers or {}),
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         fail(f"HTTP error while requesting {url}: {exc.code} {exc.reason}")
     except urllib.error.URLError as exc:
@@ -263,6 +282,104 @@ def write_local_value(arg_name: str, new_value: str) -> None:
     DOCKERFILE.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
 
 
+def split_tag_and_digest(value: str) -> tuple[str, str]:
+    tag, separator, digest = value.partition("@")
+    return tag, digest if separator else ""
+
+
+def with_digest(tag: str, digest: str) -> str:
+    return f"{tag}@{digest}" if digest else tag
+
+
+def resolve_compose_image_ref(value: str) -> str:
+    cleaned = value.strip().strip("'\"")
+    cleaned = re.sub(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-([^}]+)\}", r"\1", cleaned)
+    return cleaned
+
+
+def collect_compose_image_tags(compose_text: str) -> dict[str, str]:
+    images: dict[str, str] = {}
+    for raw_line in compose_text.splitlines():
+        line = raw_line.split("#", 1)[0]
+        match = re.match(r"^\s*image:\s*(\S+)\s*$", line)
+        if not match:
+            continue
+        image_ref = resolve_compose_image_ref(match.group(1))
+        if ":" not in image_ref:
+            continue
+        image, tag = image_ref.rsplit(":", 1)
+        if image in images and images[image] != tag:
+            fail(
+                f"Upstream compose references {image} with conflicting tags: "
+                f"{images[image]} and {tag}"
+            )
+        images[image] = tag
+    return images
+
+
+def compose_dependency_mapping(
+    config: Mapping[str, object],
+) -> tuple[str, dict[str, str]]:
+    path = str(config.get("path", "")).strip()
+    mappings = {
+        key: str(value).strip()
+        for key, value in config.items()
+        if key != "path" and str(value).strip()
+    }
+    return path, mappings
+
+
+def upstream_compose_url(repo: str, version: str, path: str) -> str:
+    if not repo:
+        fail("compose_dependencies requires [upstream].repo")
+    if not path:
+        fail("compose_dependencies requires path")
+    return f"https://raw.githubusercontent.com/{repo}/{version}/{path}"
+
+
+def expected_compose_dependency_values(
+    *,
+    upstream: Mapping[str, object],
+    compose_dependencies: Mapping[str, object],
+    version: str,
+) -> dict[str, str]:
+    compose_path, arg_to_image = compose_dependency_mapping(compose_dependencies)
+    if not arg_to_image:
+        return {}
+
+    compose_url = upstream_compose_url(
+        str(upstream.get("repo", "")).strip(), version, compose_path
+    )
+    compose_text = http_text(compose_url)
+    compose_images = collect_compose_image_tags(compose_text)
+
+    expected: dict[str, str] = {}
+    for arg_name, image in arg_to_image.items():
+        tag = compose_images.get(image)
+        if tag is None:
+            fail(
+                f"Could not find required image {image} in upstream compose for {version}"
+            )
+        digest = dockerhub_digest_for_tag(image, tag)
+        expected[arg_name] = with_digest(tag, digest)
+    return expected
+
+
+def compose_dependency_mismatches(expected: Mapping[str, str]) -> dict[str, str]:
+    mismatches: dict[str, str] = {}
+    for arg_name, expected_value in expected.items():
+        current_value = read_local_value(arg_name)
+        current_tag, current_digest = split_tag_and_digest(current_value)
+        expected_tag, expected_digest = split_tag_and_digest(expected_value)
+        if current_tag != expected_tag or (
+            expected_digest and current_digest != expected_digest
+        ):
+            mismatches[arg_name] = (
+                f"{current_value} -> {with_digest(expected_tag, expected_digest)}"
+            )
+    return mismatches
+
+
 def write_outputs(outputs: dict[str, str]) -> None:
     github_output = os.environ.get("GITHUB_OUTPUT")
     if github_output:
@@ -332,9 +449,12 @@ def main() -> None:
 
     config = parse_upstream_toml(UPSTREAM_FILE)
     upstream = config.get("upstream")
+    compose_dependencies = config.get("compose_dependencies", {})
     notifications = config.get("notifications", {})
     if not isinstance(upstream, dict):
         fail("Invalid upstream.toml: missing [upstream]")
+    if not isinstance(compose_dependencies, dict):
+        fail("Invalid upstream.toml: [compose_dependencies] must be a table")
 
     stable_only = bool(upstream.get("stable_only", True))
     version_key = str(upstream.get("version_key", "")).strip()
@@ -347,14 +467,24 @@ def main() -> None:
     digest_key = str(upstream.get("digest_key", "")).strip()
     current_digest = read_local_value(digest_key) if digest_key else ""
     latest_digest = latest_digest_for_config(upstream, latest_version)
-    updates_available = latest_version != current_version or (
-        latest_digest != "" and latest_digest != current_digest
+    expected_dependencies = expected_compose_dependency_values(
+        upstream=upstream,
+        compose_dependencies=compose_dependencies,
+        version=latest_version,
+    )
+    dependency_mismatches = compose_dependency_mismatches(expected_dependencies)
+    updates_available = (
+        latest_version != current_version
+        or bool(dependency_mismatches)
+        or (latest_digest != "" and latest_digest != current_digest)
     )
 
     if os.environ.get("WRITE_UPSTREAM_VERSION") == "true" and updates_available:
         write_local_value(version_key, latest_version)
         if latest_digest and digest_key:
             write_local_value(digest_key, latest_digest)
+        for arg_name, expected_value in expected_dependencies.items():
+            write_local_value(arg_name, expected_value)
 
     release_notes = ""
     if isinstance(notifications, dict):
@@ -371,6 +501,9 @@ def main() -> None:
     ):
         branch_name = f"codex/upstream-{latest_version}-digest-refresh"
         pr_title = f"chore(deps): refresh upstream digest for {latest_version}"
+    elif latest_version == current_version and dependency_mismatches:
+        branch_name = f"codex/upstream-{latest_version}-compose-sync"
+        pr_title = f"chore(deps): sync bundled images with SigNoz {latest_version}"
 
     write_outputs(
         {
@@ -378,6 +511,7 @@ def main() -> None:
             "latest_version": latest_version,
             "current_digest": current_digest,
             "latest_digest": latest_digest,
+            "compose_mismatches": "; ".join(dependency_mismatches.values()),
             "updates_available": "true" if updates_available else "false",
             "strategy": str(upstream.get("strategy", "pr")).strip() or "pr",
             "upstream_name": str(upstream.get("name", "")).strip(),
