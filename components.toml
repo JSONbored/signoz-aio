@@ -1,0 +1,25 @@
+[components.signoz-aio]
+type = "aio"
+context = "."
+dockerfile = "Dockerfile"
+template = "signoz-aio.xml"
+image = "jsonbored/signoz-aio"
+dockerhub_image = "jsonbored/signoz-aio"
+cache_scope = "signoz-aio-image"
+upstream_config = "upstream.toml"
+release_suffix = "aio"
+test_paths = ["tests/unit", "tests/template", "tests/integration"]
+sync_paths = ["signoz-aio.xml", "assets/app-icon.png"]
+
+[components.signoz-agent]
+type = "agent"
+context = "components/signoz-agent"
+dockerfile = "components/signoz-agent/Dockerfile"
+template = "signoz-agent.xml"
+image = "jsonbored/signoz-agent"
+dockerhub_image = "jsonbored/signoz-agent"
+cache_scope = "signoz-agent-image"
+upstream_config = "components/signoz-agent/upstream.toml"
+release_suffix = "agent"
+test_paths = ["tests/unit", "tests/template", "tests/integration_agent"]
+sync_paths = ["signoz-agent.xml", "assets/app-icon.png"]

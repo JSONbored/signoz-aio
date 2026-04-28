@@ -1,4 +1,4 @@
-name: Prepare Release / SigNoz-AIO
+name: Prepare Release / SigNoz Agent
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  RELEASE_COMPONENT: signoz-aio
+  RELEASE_COMPONENT: signoz-agent
 
 jobs:
   prepare-release:
@@ -85,11 +85,11 @@ jobs:
           commit-message: "chore(release): ${{ steps.version.outputs.release_version }}"
           title: "chore(release): ${{ steps.version.outputs.release_version }}"
           body: |
-            This PR prepares `${{ steps.version.outputs.release_version }}` for `signoz-aio`.
+            This PR prepares `${{ steps.version.outputs.release_version }}` for `signoz-agent`.
 
             - updates `CHANGELOG.md` with `git-cliff`
             - syncs the selected component XML `<Changes>` from `CHANGELOG.md`
             - is intended to be merged to `main`
-            - requires a separate manual `Publish Release / SigNoz-AIO` run after merge
+            - requires a separate manual `Publish Release / SigNoz Agent` run after merge
           branch: "release/${{ steps.version.outputs.release_version }}"
           delete-branch: true

@@ -1,18 +1,21 @@
-# SigNoz AIO Unraid Support Thread Draft
+# SigNoz Unraid Suite Support Thread Draft
 
-Use this as the first-post draft when preparing `signoz-aio` for Community Apps.
-Replace the support-thread URL in `signoz-aio.xml` after the thread exists.
+Use this as the first-post draft when preparing `signoz-aio` and `signoz-agent`
+for Community Apps. Replace the support-thread URL in the XML files only if the
+project moves away from GitHub Issues.
 
 ```md
-# Support: SigNoz AIO for Unraid
+# Support: SigNoz AIO and Agent for Unraid
 
 ## What this is
 
 SigNoz is a self-hosted observability platform for traces, metrics, and logs.
 
-This AIO package exists to make SigNoz easier to install on Unraid without
-manually translating the upstream multi-container Docker deployment into a
-single homelab-friendly template.
+This repo provides two Unraid templates:
+
+- `signoz-aio`: a self-contained backend/UI/database stack.
+- `signoz-agent`: a lightweight OpenTelemetry Collector companion for remote
+  hosts, stricter separation, and custom edge collection.
 
 ## Who this is for
 
@@ -30,12 +33,16 @@ single homelab-friendly template.
 - The optional local host agent can collect host and Docker telemetry from the
   same Unraid machine after you explicitly populate the advanced host/Docker
   path fields. Mounting the Docker socket has security implications.
+- The separate `signoz-agent` template is the recommended option for remote
+  machines or when you do not want host/Docker mounts attached to the main
+  backend container.
 - Advanced external ClickHouse and PostgreSQL settings are exposed for operators
   who already understand those services.
 
 ## Quick install notes
 
 - Image: `ghcr.io/jsonbored/signoz-aio:latest`
+- Companion agent image: `ghcr.io/jsonbored/signoz-agent:latest`
 - Default WebUI: `http://[UNRAID-IP]:8080`
 - OTLP gRPC: `4317`
 - OTLP HTTP: `4318`
@@ -59,10 +66,12 @@ The container stores persistent state under `/appdata`, including:
 
 ## Support scope
 
-This thread covers the JSONbored Unraid AIO packaging for SigNoz.
+This thread covers the JSONbored Unraid packaging for `signoz-aio` and
+`signoz-agent`.
 
 For support, please include:
 
+- which template you are using: `signoz-aio`, `signoz-agent`, or both
 - your Unraid version
 - the relevant template settings
 - container logs from first failure onward

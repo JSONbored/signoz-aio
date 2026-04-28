@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import sys
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
+
+try:
+    from components import load_components
+except ImportError:  # pragma: no cover - used when imported as a package module
+    from scripts.components import load_components
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,6 +28,29 @@ LEGACY_CHANGELOG_MARKERS = (
     "GitHub Releases",
     "Full changelog and release notes:",
 )
+EXPECTED_CATEGORY = "Network:Management Tools:Utilities"
+EXPECTED_DONATE_TEXT = "Support JSONbored on GitHub Sponsors."
+EXPECTED_DONATE_LINK = "https://github.com/sponsors/JSONbored"
+AIO_EXTRA_SEARCH_TERMS = (
+    "observability monitoring telemetry opentelemetry otel traces metrics logs apm "
+    "clickhouse dashboards alerts collector"
+)
+AIO_REQUIRES_TERMS = (
+    "4GB Docker memory",
+    "Back up /appdata",
+    "/var/run/docker.sock",
+    "Docker control access",
+)
+AGENT_EXTRA_SEARCH_TERMS = (
+    "observability monitoring telemetry opentelemetry otel collector agent traces "
+    "metrics logs prometheus docker hostmetrics signoz"
+)
+AGENT_REQUIRES_TERMS = (
+    "reachable SigNoz OTLP endpoint",
+    "default 4317 and 4318 host ports will conflict",
+    "/var/run/docker.sock",
+    "Docker control access",
+)
 
 REQUIRED_TEXT_FIELDS = (
     "Support",
@@ -30,6 +59,10 @@ REQUIRED_TEXT_FIELDS = (
     "Category",
     "TemplateURL",
     "Icon",
+    "ExtraSearchTerms",
+    "Requires",
+    "DonateText",
+    "DonateLink",
     "Changes",
 )
 
@@ -214,6 +247,40 @@ REQUIRED_TARGETS = {
     "ZOO_PROMETHEUS_METRICS_PORT_NUMBER",
 }
 
+AGENT_REQUIRED_TARGETS = {
+    "/appdata",
+    "/hostfs",
+    "/var/lib/docker/containers",
+    "/var/run/docker.sock",
+    "4317",
+    "4318",
+    "SIGNOZ_AGENT_BATCH_SEND_SIZE",
+    "SIGNOZ_AGENT_BATCH_TIMEOUT",
+    "SIGNOZ_AGENT_CONFIG_MODE",
+    "SIGNOZ_AGENT_CUSTOM_CONFIG_PATH",
+    "SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT",
+    "SIGNOZ_AGENT_DOCKER_COLLECTION_INTERVAL",
+    "SIGNOZ_AGENT_ENABLE_DOCKER_LOGS",
+    "SIGNOZ_AGENT_ENABLE_DOCKER_METRICS",
+    "SIGNOZ_AGENT_ENABLE_HOST_METRICS",
+    "SIGNOZ_AGENT_ENDPOINT",
+    "SIGNOZ_AGENT_HEADERS",
+    "SIGNOZ_AGENT_HEALTH_ENDPOINT",
+    "SIGNOZ_AGENT_HOST_COLLECTION_INTERVAL",
+    "SIGNOZ_AGENT_INGESTION_KEY",
+    "SIGNOZ_AGENT_INSECURE",
+    "SIGNOZ_AGENT_LOG_LEVEL",
+    "SIGNOZ_AGENT_MEMORY_LIMIT_MIB",
+    "SIGNOZ_AGENT_OTLP_GRPC_ENDPOINT",
+    "SIGNOZ_AGENT_OTLP_HTTP_ENDPOINT",
+    "SIGNOZ_AGENT_PROMETHEUS_METRICS_PATH",
+    "SIGNOZ_AGENT_PROMETHEUS_SCRAPE_INTERVAL",
+    "SIGNOZ_AGENT_PROMETHEUS_TARGETS",
+    "SIGNOZ_AGENT_PROTOCOL",
+    "SIGNOZ_AGENT_RESOURCE_ATTRIBUTES",
+    "TZ",
+}
+
 OPTIONAL_SENSITIVE_PATH_TARGETS = {
     "/hostfs": "ro",
     "/var/lib/docker/containers": "ro",
@@ -225,6 +292,41 @@ PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS = {
     "SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED",
     "SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES",
     "SIGNOZ_STATSREPORTER_ENABLED",
+}
+
+AGENT_PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS = {
+    "SIGNOZ_AGENT_ENABLE_DOCKER_LOGS",
+    "SIGNOZ_AGENT_ENABLE_DOCKER_METRICS",
+    "SIGNOZ_AGENT_ENABLE_HOST_METRICS",
+}
+
+TEMPLATE_CONTRACTS = {
+    "signoz-aio": {
+        "template_url": "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml",
+        "icon": "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png",
+        "project": "https://github.com/JSONbored/signoz-aio",
+        "support": "https://github.com/JSONbored/signoz-aio/issues",
+        "extra_search_terms": AIO_EXTRA_SEARCH_TERMS,
+        "requires_terms": AIO_REQUIRES_TERMS,
+        "required_targets": REQUIRED_TARGETS,
+        "sensitive_path_targets": OPTIONAL_SENSITIVE_PATH_TARGETS,
+        "privacy_false_targets": PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS,
+    },
+    "signoz-agent": {
+        "template_url": "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-agent.xml",
+        "icon": "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png",
+        "project": "https://github.com/JSONbored/signoz-aio",
+        "support": "https://github.com/JSONbored/signoz-aio/issues",
+        "extra_search_terms": AGENT_EXTRA_SEARCH_TERMS,
+        "requires_terms": AGENT_REQUIRES_TERMS,
+        "required_targets": AGENT_REQUIRED_TARGETS,
+        "sensitive_path_targets": {
+            "/hostfs": "ro",
+            "/var/lib/docker/containers": "ro",
+            "/var/run/docker.sock": "ro",
+        },
+        "privacy_false_targets": AGENT_PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS,
+    },
 }
 
 
@@ -285,8 +387,7 @@ def validate_changes_block(xml_path: Path, changes: str) -> int:
     return 0
 
 
-def main() -> int:
-    xml_path = resolve_template_path()
+def validate_template(xml_path: Path) -> int:
     if not xml_path.exists():
         return fail(f"Template XML not found: {xml_path}")
 
@@ -302,32 +403,40 @@ def main() -> int:
         if not value:
             return fail(f"{xml_path.name} is missing a non-empty <{field}> field")
 
+    name = root.findtext("Name") or ""
+    contract = TEMPLATE_CONTRACTS.get(name)
+    if contract is None:
+        return fail(f"{xml_path.name} has unsupported <Name>{name}</Name>")
+
     template_url = (root.findtext("TemplateURL") or "").strip()
-    if (
-        template_url
-        != "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml"
-    ):
+    if template_url != contract["template_url"]:
         return fail(
-            f"{xml_path.name} TemplateURL should point at raw awesome-unraid/main/signoz-aio.xml"
+            f"{xml_path.name} TemplateURL should point at {contract['template_url']}"
         )
 
     icon_url = (root.findtext("Icon") or "").strip()
-    if (
-        icon_url
-        != "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png"
-    ):
+    if icon_url != contract["icon"]:
+        return fail(f"{xml_path.name} Icon should point at {contract['icon']}")
+
+    if root.findtext("Project") != contract["project"]:
+        return fail(f"{xml_path.name} Project should point at {contract['project']}")
+    if root.findtext("Support") != contract["support"]:
+        return fail(f"{xml_path.name} Support should point at {contract['support']}")
+    if root.findtext("Category") != EXPECTED_CATEGORY:
+        return fail(f"{xml_path.name} Category should be {EXPECTED_CATEGORY}")
+    if root.findtext("DonateText") != EXPECTED_DONATE_TEXT:
+        return fail(f"{xml_path.name} DonateText should point users at GitHub Sponsors")
+    if root.findtext("DonateLink") != EXPECTED_DONATE_LINK:
+        return fail(f"{xml_path.name} DonateLink should point at JSONbored sponsors")
+    if root.findtext("ExtraSearchTerms") != contract["extra_search_terms"]:
         return fail(
-            f"{xml_path.name} Icon should point at raw awesome-unraid/main/icons/signoz.png"
+            f"{xml_path.name} ExtraSearchTerms should match the CA search contract"
         )
 
-    if root.findtext("Name") != "signoz-aio":
-        return fail(f"{xml_path.name} should have <Name>signoz-aio</Name>")
-    if root.findtext("Project") != "https://github.com/JSONbored/signoz-aio":
-        return fail(f"{xml_path.name} Project should point at the signoz-aio repo")
-    if root.findtext("Support") != "https://github.com/JSONbored/signoz-aio/issues":
-        return fail(f"{xml_path.name} Support should point at signoz-aio issues")
-    if "Monitoring" not in (root.findtext("Category") or ""):
-        return fail(f"{xml_path.name} Category should include Monitoring")
+    requires = root.findtext("Requires") or ""
+    for term in contract["requires_terms"]:
+        if term not in requires:
+            return fail(f"{xml_path.name} Requires should mention {term}")
 
     changes = (root.findtext("Changes") or "").strip()
     if GENERATED_CHANGELOG_NOTE not in changes:
@@ -349,7 +458,7 @@ def main() -> int:
     targets = {
         config.attrib["Target"] for config in configs if config.attrib.get("Target")
     }
-    missing_targets = sorted(REQUIRED_TARGETS - targets)
+    missing_targets = sorted(contract["required_targets"] - targets)
     if missing_targets:
         print(
             f"{xml_path.name} is missing required SigNoz config targets:",
@@ -359,7 +468,7 @@ def main() -> int:
             print(f"  - {target}", file=sys.stderr)
         return 1
 
-    for target, expected_mode in OPTIONAL_SENSITIVE_PATH_TARGETS.items():
+    for target, expected_mode in contract["sensitive_path_targets"].items():
         config = configs_by_target.get(target)
         if config is None:
             continue
@@ -378,7 +487,7 @@ def main() -> int:
                 f"{xml_path.name} optional sensitive path {target} must be advanced, optional, mode={expected_mode}, and blank by default"
             )
 
-    for target in PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS:
+    for target in contract["privacy_false_targets"]:
         config = configs_by_target.get(target)
         if config is None:
             continue
@@ -434,6 +543,24 @@ def main() -> int:
         f"{xml_path.name} parsed successfully and passed {template_kind}catalog-safe validation"
     )
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate SigNoz suite Unraid XML.")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Validate every template referenced by components.toml.",
+    )
+    args = parser.parse_args()
+
+    if args.all:
+        failures = 0
+        for component in load_components():
+            failures += validate_template(ROOT / component.template)
+        return 1 if failures else 0
+
+    return validate_template(resolve_template_path())
 
 
 if __name__ == "__main__":

@@ -4,6 +4,16 @@ title: "[Feature]: "
 labels:
   - enhancement
 body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Template/component
+      options:
+        - signoz-aio
+        - signoz-agent
+        - both
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:

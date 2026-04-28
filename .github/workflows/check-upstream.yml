@@ -18,6 +18,12 @@ concurrency:
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - signoz-aio
+          - signoz-agent
     permissions:
       contents: write
       pull-requests: write
@@ -32,9 +38,10 @@ jobs:
         id: upstream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPONENT: ${{ matrix.component }}
         run: |
           chmod +x scripts/check-upstream.py
-          ./scripts/check-upstream.py
+          ./scripts/check-upstream.py --component "${COMPONENT}"
 
       - name: Stop if already current
         if: ${{ steps.upstream.outputs.updates_available != 'true' }}
@@ -49,7 +56,8 @@ jobs:
         env:
           WRITE_UPSTREAM_VERSION: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/check-upstream.py
+          COMPONENT: ${{ matrix.component }}
+        run: ./scripts/check-upstream.py --component "${COMPONENT}"
 
       - name: Commit upstream version bump
         if: ${{ steps.upstream.outputs.updates_available == 'true' && steps.upstream.outputs.strategy == 'pr' }}
@@ -58,7 +66,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Dockerfile
+          git add Dockerfile components/signoz-agent/Dockerfile
           git commit -m "${PR_TITLE}"
 
       - name: Push update branch
@@ -81,10 +89,11 @@ jobs:
           BRANCH_NAME: ${{ steps.upstream.outputs.branch_name }}
           PR_TITLE: ${{ steps.upstream.outputs.pr_title }}
           UPSTREAM_NAME: ${{ steps.upstream.outputs.upstream_name }}
+          COMPONENT: ${{ steps.upstream.outputs.component }}
         run: |
           body_file="$(mktemp)"
           {
-            echo "${UPSTREAM_NAME} upstream has newer published artifacts."
+            echo "${UPSTREAM_NAME} upstream has newer published artifacts for ${COMPONENT}."
             echo
             echo "- Current pinned upstream version: \`${CURRENT_VERSION}\`"
             echo "- Latest upstream version: \`${LATEST_VERSION}\`"
@@ -124,11 +133,12 @@ jobs:
           COMPOSE_MISMATCHES: ${{ steps.upstream.outputs.compose_mismatches }}
           RELEASE_NOTES_URL: ${{ steps.upstream.outputs.release_notes_url }}
           UPSTREAM_NAME: ${{ steps.upstream.outputs.upstream_name }}
+          COMPONENT: ${{ steps.upstream.outputs.component }}
         run: |
-          issue_title="Upstream update available: ${LATEST_VERSION}"
+          issue_title="Upstream update available for ${COMPONENT}: ${LATEST_VERSION}"
           body_file="$(mktemp)"
           {
-            echo "${UPSTREAM_NAME} upstream has newer published artifacts available."
+            echo "${UPSTREAM_NAME} upstream has newer published artifacts available for ${COMPONENT}."
             echo
             echo "- Current pinned upstream version: \`${CURRENT_VERSION}\`"
             echo "- Latest upstream version: \`${LATEST_VERSION}\`"
