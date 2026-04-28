@@ -7,7 +7,7 @@ RELEASE_WORKFLOW = Path(".github/workflows/release.yml")
 PYTEST_ACTION = Path(".github/actions/run-pytest/action.yml")
 ALLOWED_CREATE_PULL_REQUEST_REF = (
     "peter-evans/create-pull-request@"
-    "c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0"
+    "5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1"
 )
 
 
@@ -132,4 +132,4 @@ def test_workflows_use_org_allowed_create_pull_request_pin() -> None:
         if "peter-evans/create-pull-request@" not in workflow:
             continue
         assert ALLOWED_CREATE_PULL_REQUEST_REF in workflow  # nosec B101
-        assert "peter-evans/create-pull-request@5f6978" not in workflow  # nosec B101
+        assert "peter-evans/create-pull-request@c0f553" not in workflow  # nosec B101
