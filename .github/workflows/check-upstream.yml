@@ -76,6 +76,7 @@ jobs:
           LATEST_VERSION: ${{ steps.upstream.outputs.latest_version }}
           CURRENT_DIGEST: ${{ steps.upstream.outputs.current_digest }}
           LATEST_DIGEST: ${{ steps.upstream.outputs.latest_digest }}
+          COMPOSE_MISMATCHES: ${{ steps.upstream.outputs.compose_mismatches }}
           RELEASE_NOTES_URL: ${{ steps.upstream.outputs.release_notes_url }}
           BRANCH_NAME: ${{ steps.upstream.outputs.branch_name }}
           PR_TITLE: ${{ steps.upstream.outputs.pr_title }}
@@ -90,6 +91,9 @@ jobs:
             if [[ -n "${CURRENT_DIGEST}" || -n "${LATEST_DIGEST}" ]]; then
               echo "- Current pinned upstream digest: \`${CURRENT_DIGEST}\`"
               echo "- Latest upstream digest: \`${LATEST_DIGEST}\`"
+            fi
+            if [[ -n "${COMPOSE_MISMATCHES}" ]]; then
+              echo "- Bundled image drift from upstream Compose: \`${COMPOSE_MISMATCHES}\`"
             fi
             echo "- Release notes: ${RELEASE_NOTES_URL}"
             echo
@@ -117,6 +121,7 @@ jobs:
           LATEST_VERSION: ${{ steps.upstream.outputs.latest_version }}
           CURRENT_DIGEST: ${{ steps.upstream.outputs.current_digest }}
           LATEST_DIGEST: ${{ steps.upstream.outputs.latest_digest }}
+          COMPOSE_MISMATCHES: ${{ steps.upstream.outputs.compose_mismatches }}
           RELEASE_NOTES_URL: ${{ steps.upstream.outputs.release_notes_url }}
           UPSTREAM_NAME: ${{ steps.upstream.outputs.upstream_name }}
         run: |
@@ -130,6 +135,9 @@ jobs:
             if [[ -n "${CURRENT_DIGEST}" || -n "${LATEST_DIGEST}" ]]; then
               echo "- Current pinned upstream digest: \`${CURRENT_DIGEST}\`"
               echo "- Latest upstream digest: \`${LATEST_DIGEST}\`"
+            fi
+            if [[ -n "${COMPOSE_MISMATCHES}" ]]; then
+              echo "- Bundled image drift from upstream Compose: \`${COMPOSE_MISMATCHES}\`"
             fi
             echo "- Release notes: ${RELEASE_NOTES_URL}"
           } > "${body_file}"
