@@ -62,6 +62,34 @@ def test_suite_component_paths_participate_in_ci_change_detection() -> None:
         "pytest-args: tests/integration_agent -m integration" in workflow
     )  # nosec B101
     assert "AGENT_IMAGE_NAME: jsonbored/signoz-agent" in workflow  # nosec B101
+    assert (  # nosec B101
+        "assets/*)\n                aio_related=true\n                agent_related=true"
+        in workflow
+    )
+
+
+def test_template_only_changes_do_not_publish_component_images() -> None:
+    workflow = BUILD_WORKFLOW.read_text()
+
+    assert (  # nosec B101
+        "needs.detect-changes.outputs.aio_related == 'true' && "
+        "needs.detect-changes.outputs.build_related == 'true' && "
+        "github.event_name == 'push'"
+    ) in workflow
+    assert (  # nosec B101
+        "needs.detect-changes.outputs.agent_related == 'true' && "
+        "needs.detect-changes.outputs.build_related == 'true' && "
+        "github.event_name == 'push'"
+    ) in workflow
+    assert (  # nosec B101
+        "needs.detect-changes.outputs.build_related == 'true' || "
+        "needs.detect-changes.outputs.xml_related == 'true') && "
+        "github.event_name == 'push'"
+    ) not in workflow
+    assert (  # nosec B101
+        "github.event_name == 'push' && github.ref == 'refs/heads/main' && "
+        "needs.detect-changes.outputs.publish_requested == 'true'))"
+    ) not in workflow
 
 
 def test_local_actions_participate_in_ci_change_detection_and_pin_checks() -> None:

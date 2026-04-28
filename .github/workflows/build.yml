@@ -185,7 +185,12 @@ jobs:
                 aio_related=true
                 xml_related=true
                 ;;
-              assets/*|signoz-agent.xml)
+              assets/*)
+                aio_related=true
+                agent_related=true
+                xml_related=true
+                ;;
+              signoz-agent.xml)
                 agent_related=true
                 xml_related=true
                 ;;
@@ -349,7 +354,7 @@ jobs:
           trunk-org-slug: ${{ env.TRUNK_ORG_URL_SLUG }}
 
   integration-tests:
-    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && needs.detect-changes.outputs.aio_related == 'true' && (needs.detect-changes.outputs.build_related == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true')) }}
+    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && needs.detect-changes.outputs.aio_related == 'true' && needs.detect-changes.outputs.build_related == 'true' }}
     needs:
       - detect-changes
       - validate-template
@@ -401,7 +406,7 @@ jobs:
           docker images
 
   agent-integration-tests:
-    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && needs.detect-changes.outputs.agent_related == 'true' && (needs.detect-changes.outputs.build_related == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true')) }}
+    if: ${{ needs.detect-changes.outputs.run_tests_requested == 'true' && needs.detect-changes.outputs.agent_related == 'true' && needs.detect-changes.outputs.build_related == 'true' }}
     needs:
       - detect-changes
       - validate-template
@@ -455,7 +460,7 @@ jobs:
           docker images
 
   publish:
-    if: ${{ needs.detect-changes.outputs.aio_related == 'true' && (needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.xml_related == 'true') && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true' && needs.integration-tests.result == 'success' }}
+    if: ${{ needs.detect-changes.outputs.aio_related == 'true' && needs.detect-changes.outputs.build_related == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true' && needs.integration-tests.result == 'success' }}
     needs:
       - detect-changes
       - validate-template
@@ -611,7 +616,7 @@ jobs:
           load: false
 
   publish-agent:
-    if: ${{ needs.detect-changes.outputs.agent_related == 'true' && (needs.detect-changes.outputs.build_related == 'true' || needs.detect-changes.outputs.xml_related == 'true') && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true' && needs.agent-integration-tests.result == 'success' }}
+    if: ${{ needs.detect-changes.outputs.agent_related == 'true' && needs.detect-changes.outputs.build_related == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-changes.outputs.publish_requested == 'true' && needs.agent-integration-tests.result == 'success' }}
     needs:
       - detect-changes
       - validate-template
