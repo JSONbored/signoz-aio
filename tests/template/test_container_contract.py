@@ -24,6 +24,19 @@ SECRET_KEYWORDS = (
     "TOKEN",
 )
 
+OPTIONAL_SENSITIVE_PATH_TARGETS = {
+    "/hostfs": "ro",
+    "/var/lib/docker/containers": "ro",
+    "/var/run/docker.sock": "rw",
+}
+
+PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS = {
+    "SIGNOZ_ANALYTICS_ENABLED",
+    "SIGNOZ_SERVICEACCOUNT_ANALYTICS_ENABLED",
+    "SIGNOZ_STATSREPORTER_COLLECT_IDENTITIES",
+    "SIGNOZ_STATSREPORTER_ENABLED",
+}
+
 
 def _template_path() -> Path:
     candidates = sorted(ROOT.glob("*.xml"))
@@ -68,6 +81,14 @@ def _arg_defaults() -> dict[str, str]:
 
 def _config_elements() -> list[ET.Element]:
     return list(_template_root().findall("Config"))
+
+
+def _configs_by_target() -> dict[str, ET.Element]:
+    return {
+        config.get("Target"): config
+        for config in _config_elements()
+        if config.get("Target")
+    }
 
 
 def test_unraid_metadata_contract_is_complete_and_unprivileged() -> None:
@@ -164,7 +185,7 @@ def test_beginner_surface_is_minimal_and_fixed_booleans_are_dropdowns() -> None:
         "SIGNOZ_USER_ROOT_ENABLED",
         "SIGNOZ_VERSION_BANNER_ENABLED",
     }
-    configs_by_target = {config.get("Target"): config for config in _config_elements()}
+    configs_by_target = _configs_by_target()
     for target in fixed_boolean_targets:
         config = configs_by_target[target]
         assert config.get("Default") in {  # nosec B101
@@ -259,11 +280,31 @@ def test_dockerfile_has_runtime_safety_contract() -> None:
     assert "S6_BEHAVIOUR_IF_STAGE2_FAILS=2" in dockerfile  # nosec B101
 
 
-def test_docker_socket_mount_is_advanced_and_documented_when_present() -> None:
-    for config in _config_elements():
-        if config.get("Target") != "/var/run/docker.sock":
-            continue
+def test_optional_host_agent_mounts_are_blank_and_explicit_by_default() -> None:
+    configs_by_target = _configs_by_target()
+
+    for target, expected_mode in OPTIONAL_SENSITIVE_PATH_TARGETS.items():
+        config = configs_by_target[target]
         description = (config.get("Description") or "").lower()
+
+        assert config.get("Type") == "Path"  # nosec B101
         assert config.get("Display") == "advanced"  # nosec B101
         assert config.get("Required") == "false"  # nosec B101
-        assert "socket" in description and "security" in description  # nosec B101
+        assert config.get("Mode") == expected_mode  # nosec B101
+        assert config.get("Default") == ""  # nosec B101
+        assert (config.text or "").strip() == ""  # nosec B101
+        assert "leave blank" in description  # nosec B101
+
+    socket_description = (
+        configs_by_target["/var/run/docker.sock"].get("Description") or ""
+    ).lower()
+    assert "docker control access" in socket_description  # nosec B101
+
+
+def test_privacy_sensitive_telemetry_defaults_are_opt_in() -> None:
+    configs_by_target = _configs_by_target()
+
+    for target in PRIVACY_OPT_IN_DEFAULT_FALSE_TARGETS:
+        config = configs_by_target[target]
+        assert config.get("Default") == "false|true"  # nosec B101
+        assert (config.text or "").strip() == "false"  # nosec B101

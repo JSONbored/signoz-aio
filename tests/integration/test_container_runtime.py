@@ -88,6 +88,12 @@ def inspect_state(name: str) -> str:
     return result.stdout.strip()
 
 
+def docker_mount_destinations(name: str) -> set[str]:
+    result = run_command(["docker", "inspect", name, "--format", "{{json .Mounts}}"])
+    mounts = json.loads(result.stdout)
+    return {mount.get("Destination", "") for mount in mounts}
+
+
 def docker_exec(name: str, command: str, *, check: bool = True) -> str:
     result = run_command(["docker", "exec", name, "bash", "-lc", command], check=check)
     return result.stdout.strip()
@@ -704,6 +710,27 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
             print(f"first_ready_seconds={ready_seconds:.1f}")
             print(f"idle_stats={stats_snapshot(runtime.name)}")
 
+            assert not (
+                {
+                    "/hostfs",
+                    "/var/lib/docker/containers",
+                    "/var/run/docker.sock",
+                }
+                & docker_mount_destinations(runtime.name)
+            )  # nosec B101
+            assert (  # nosec B101
+                docker_exec(
+                    runtime.name, "cat /appdata/config/generated-host-agent.status"
+                )
+                == "disabled"
+            )
+            assert (  # nosec B101
+                docker_exec(
+                    runtime.name,
+                    "if [ -S /var/run/docker.sock ]; then echo present; else echo absent; fi",
+                )
+                == "absent"
+            )
             assert container_path_exists(
                 runtime.name, "/appdata/config/generated.env"
             )  # nosec B101

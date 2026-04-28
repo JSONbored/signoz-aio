@@ -95,7 +95,7 @@ That collector then forwards everything to:
 
 - `YOUR-UNRAID-IP:4317`
 
-With the built-in host agent mode, those mounts are attached to the main container only when you explicitly enable that feature in the template.
+With the built-in host agent mode, those mounts are attached to the main container only when you explicitly enable the feature and populate the matching advanced path fields. Leaving the path fields blank attaches no host root, Docker socket, or Docker log mounts.
 
 ## Option 4: Combine Both
 

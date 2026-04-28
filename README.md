@@ -179,18 +179,24 @@ Starter example:
 
 ### 3. Unraid host + Docker telemetry
 
-If you want host metrics, Docker container metrics, and container logs from the same Unraid machine, enable the built-in local host agent in the app settings.
+If you want host metrics, Docker container metrics, and container logs from the same Unraid machine, enable the built-in local host agent in the app settings and explicitly fill only the advanced host/Docker path fields you want to use.
 
 Starter example:
 
 - [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
 
-The built-in host agent is auto-generated from the mounts and variables you provide. With the default Unraid paths, it can automatically enable:
+The built-in host agent is auto-generated from the mounts and variables you provide. A default install does not mount the host root, Docker socket, or Docker log directory. When you opt in, it can enable:
 
 - Unraid CPU, memory, disk, and filesystem metrics
 - Docker container resource metrics
 - Docker stdout/stderr logs
 - optional Prometheus scrape targets you define
+
+Common explicit path values are:
+
+- Host Root Path: `/`
+- Docker Socket: `/var/run/docker.sock`
+- Docker Container Logs Path: `/var/lib/docker/containers`
 
 This is the best fit for users who want:
 
@@ -217,7 +223,7 @@ That means you still need to connect senders such as:
 - Prometheus scrape pipelines
 - log shippers or agent-based host collectors
 
-The optional built-in local host agent can collect from the same Unraid machine when you enable the advanced mounts, including the Docker socket. That is useful, but it is also a security tradeoff and it does not replace proper agents for remote systems.
+The optional built-in local host agent can collect from the same Unraid machine when you explicitly populate the advanced mounts, including the Docker socket. That is useful, but it is also a security tradeoff and it does not replace proper agents for remote systems.
 
 ## Docs And Examples
 

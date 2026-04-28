@@ -29,7 +29,8 @@ accordingly.
 
 `SIGNOZ_ENABLE_HOST_AGENT=true` enables an optional local collector for the same
 Unraid host. Host metrics, Docker metrics, and Docker log collection only activate
-when the matching advanced mounts are present.
+when the matching advanced path fields are explicitly populated. The default
+template leaves these host/Docker mounts blank.
 
 Mounting `/var/run/docker.sock` is powerful and sensitive. It gives the container
 Docker control access, so enable it only when the local host telemetry benefit is
