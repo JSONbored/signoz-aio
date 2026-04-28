@@ -27,7 +27,7 @@ Use signoz-agent on remote Unraid servers, separate Docker hosts, or any machine
   <Changes>### 2026-04-28&#xD;
 - Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
 - Add initial signoz-agent companion template</Changes>
-  <Category>Monitoring: Tools:Utilities</Category>
+  <Category>Network:Management Tools:Utilities</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-agent.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png</Icon>

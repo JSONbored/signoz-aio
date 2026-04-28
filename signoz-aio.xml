@@ -28,7 +28,7 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
   <Changes>### 2026-04-28&#xD;
 - Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
 - Require explicit host agent mounts by @JSONbored in [#34](https://github.com/JSONbored/signoz-aio/pull/34)</Changes>
-  <Category>Monitoring: Tools:Utilities</Category>
+  <Category>Network:Management Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-aio.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png</Icon>

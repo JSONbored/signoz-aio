@@ -28,7 +28,7 @@ LEGACY_CHANGELOG_MARKERS = (
     "GitHub Releases",
     "Full changelog and release notes:",
 )
-EXPECTED_CATEGORY = "Monitoring: Tools:Utilities"
+EXPECTED_CATEGORY = "Network:Management Tools:Utilities"
 EXPECTED_DONATE_TEXT = "Support JSONbored on GitHub Sponsors."
 EXPECTED_DONATE_LINK = "https://github.com/sponsors/JSONbored"
 AIO_EXTRA_SEARCH_TERMS = (

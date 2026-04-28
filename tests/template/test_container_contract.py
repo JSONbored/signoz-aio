@@ -129,7 +129,9 @@ def test_unraid_metadata_contract_is_complete_and_unprivileged() -> None:
     ):
         value = root.findtext(tag)
         assert value and value.strip(), f"{tag} must be populated"  # nosec B101
-    assert root.findtext("Category") == "Monitoring: Tools:Utilities"  # nosec B101
+    assert (  # nosec B101
+        root.findtext("Category") == "Network:Management Tools:Utilities"
+    )
     assert root.findtext("DonateText") == (  # nosec B101
         "Support JSONbored on GitHub Sponsors."
     )
@@ -383,7 +385,9 @@ def test_agent_metadata_contract_is_complete_and_unprivileged() -> None:
     assert root.findtext("Icon") == (  # nosec B101
         "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png"
     )
-    assert root.findtext("Category") == "Monitoring: Tools:Utilities"  # nosec B101
+    assert (  # nosec B101
+        root.findtext("Category") == "Network:Management Tools:Utilities"
+    )
     assert root.findtext("Privileged") == "false"  # nosec B101
 
     for tag in ("ExtraSearchTerms", "Requires", "Overview", "DonateText", "DonateLink"):
