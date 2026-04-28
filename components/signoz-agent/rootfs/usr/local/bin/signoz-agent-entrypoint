@@ -1,0 +1,312 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2310,SC2312
+set -euo pipefail
+
+APPDATA_DIR="${APPDATA_DIR:-/appdata}"
+CONFIG_DIR="${APPDATA_DIR}/config"
+GENERATED_CONFIG="${CONFIG_DIR}/generated-collector.yaml"
+STATUS_FILE="${CONFIG_DIR}/agent.status"
+DIAGNOSTICS_FILE="${CONFIG_DIR}/agent.diagnostics"
+
+trim() {
+	local value="$1"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "${value}"
+}
+
+is_true() {
+	case "$(printf '%s' "${1-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | y | on) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+normalize_blank() {
+	local key
+	for key in "$@"; do
+		if [[ -v ${key} ]] && [[ -z $(trim "${!key}") ]]; then
+			unset "${key}"
+		fi
+	done
+}
+
+fail() {
+	local message="$1"
+	mkdir -p "${CONFIG_DIR}"
+	printf 'failed\n' >"${STATUS_FILE}"
+	printf '%s\n' "${message}" >"${DIAGNOSTICS_FILE}"
+	printf '[signoz-agent] ERROR: %s\n' "${message}" >&2
+	exit 1
+}
+
+yaml_quote() {
+	local value="$1"
+	value="${value//\\/\\\\}"
+	value="${value//\"/\\\"}"
+	printf '"%s"' "${value}"
+}
+
+append_headers() {
+	local indent="$1"
+	local headers="${SIGNOZ_AGENT_HEADERS-}"
+	if [[ -n ${SIGNOZ_AGENT_INGESTION_KEY-} ]]; then
+		headers="${headers:+${headers},}signoz-ingestion-key=${SIGNOZ_AGENT_INGESTION_KEY}"
+	fi
+	[[ -n ${headers} ]] || return 0
+
+	printf '%sheaders:\n' "${indent}"
+	local pair key value
+	IFS=',' read -r -a header_pairs <<<"${headers}"
+	for pair in "${header_pairs[@]}"; do
+		pair="$(trim "${pair}")"
+		[[ -n ${pair} && ${pair} == *"="* ]] || continue
+		key="$(trim "${pair%%=*}")"
+		value="$(trim "${pair#*=}")"
+		[[ -n ${key} ]] || continue
+		printf '%s  %s: %s\n' "${indent}" "${key}" "$(yaml_quote "${value}")"
+	done
+}
+
+append_resource_attributes() {
+	local attrs="${SIGNOZ_AGENT_RESOURCE_ATTRIBUTES-}"
+	if [[ -n ${SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT-} ]]; then
+		attrs="${attrs:+${attrs},}deployment.environment=${SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT}"
+	fi
+	[[ -n ${attrs} ]] || return 0
+
+	printf '  resource/signoz:\n'
+	printf '    attributes:\n'
+	local pair key value
+	IFS=',' read -r -a attr_pairs <<<"${attrs}"
+	for pair in "${attr_pairs[@]}"; do
+		pair="$(trim "${pair}")"
+		[[ -n ${pair} && ${pair} == *"="* ]] || continue
+		key="$(trim "${pair%%=*}")"
+		value="$(trim "${pair#*=}")"
+		[[ -n ${key} ]] || continue
+		printf '      - key: %s\n' "${key}"
+		printf '        value: %s\n' "$(yaml_quote "${value}")"
+		printf '        action: upsert\n'
+	done
+}
+
+mkdir -p "${CONFIG_DIR}"
+normalize_blank \
+	SIGNOZ_AGENT_ENDPOINT \
+	SIGNOZ_AGENT_PROTOCOL \
+	SIGNOZ_AGENT_HEADERS \
+	SIGNOZ_AGENT_INGESTION_KEY \
+	SIGNOZ_AGENT_RESOURCE_ATTRIBUTES \
+	SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT \
+	SIGNOZ_AGENT_DOCKER_EXCLUDED_IMAGES \
+	SIGNOZ_AGENT_CUSTOM_CONFIG_PATH \
+	SIGNOZ_AGENT_PROMETHEUS_TARGETS
+
+SIGNOZ_AGENT_CONFIG_MODE="${SIGNOZ_AGENT_CONFIG_MODE:-generated}"
+SIGNOZ_AGENT_PROTOCOL="${SIGNOZ_AGENT_PROTOCOL:-grpc}"
+SIGNOZ_AGENT_INSECURE="${SIGNOZ_AGENT_INSECURE:-true}"
+SIGNOZ_AGENT_LOG_LEVEL="${SIGNOZ_AGENT_LOG_LEVEL:-info}"
+SIGNOZ_AGENT_OTLP_GRPC_ENDPOINT="${SIGNOZ_AGENT_OTLP_GRPC_ENDPOINT:-0.0.0.0:4317}"
+SIGNOZ_AGENT_OTLP_HTTP_ENDPOINT="${SIGNOZ_AGENT_OTLP_HTTP_ENDPOINT:-0.0.0.0:4318}"
+SIGNOZ_AGENT_HEALTH_ENDPOINT="${SIGNOZ_AGENT_HEALTH_ENDPOINT:-0.0.0.0:13133}"
+SIGNOZ_AGENT_BATCH_SEND_SIZE="${SIGNOZ_AGENT_BATCH_SEND_SIZE:-8192}"
+SIGNOZ_AGENT_BATCH_TIMEOUT="${SIGNOZ_AGENT_BATCH_TIMEOUT:-5s}"
+SIGNOZ_AGENT_MEMORY_LIMIT_MIB="${SIGNOZ_AGENT_MEMORY_LIMIT_MIB:-512}"
+SIGNOZ_AGENT_PROMETHEUS_METRICS_PATH="${SIGNOZ_AGENT_PROMETHEUS_METRICS_PATH:-/metrics}"
+SIGNOZ_AGENT_PROMETHEUS_SCRAPE_INTERVAL="${SIGNOZ_AGENT_PROMETHEUS_SCRAPE_INTERVAL:-30s}"
+SIGNOZ_AGENT_HOST_COLLECTION_INTERVAL="${SIGNOZ_AGENT_HOST_COLLECTION_INTERVAL:-30s}"
+SIGNOZ_AGENT_DOCKER_COLLECTION_INTERVAL="${SIGNOZ_AGENT_DOCKER_COLLECTION_INTERVAL:-30s}"
+
+case "${SIGNOZ_AGENT_CONFIG_MODE}" in
+generated | custom) ;;
+*) fail "SIGNOZ_AGENT_CONFIG_MODE must be generated or custom." ;;
+esac
+
+if [[ ${SIGNOZ_AGENT_CONFIG_MODE} == "custom" ]]; then
+	[[ -n ${SIGNOZ_AGENT_CUSTOM_CONFIG_PATH-} ]] || fail "Custom config mode requires SIGNOZ_AGENT_CUSTOM_CONFIG_PATH."
+	[[ -f ${SIGNOZ_AGENT_CUSTOM_CONFIG_PATH} ]] || fail "Custom collector config not found at ${SIGNOZ_AGENT_CUSTOM_CONFIG_PATH}."
+	printf 'custom\n' >"${STATUS_FILE}"
+	exec /usr/local/bin/otelcol-contrib --config "${SIGNOZ_AGENT_CUSTOM_CONFIG_PATH}"
+fi
+
+[[ -n ${SIGNOZ_AGENT_ENDPOINT-} ]] || fail "SIGNOZ_AGENT_ENDPOINT is required. Use your SigNoz OTLP gRPC endpoint, for example YOUR-UNRAID-IP:4317."
+
+metrics_receivers=("otlp")
+logs_receivers=("otlp")
+traces_receivers=("otlp")
+receiver_blocks=""
+
+if is_true "${SIGNOZ_AGENT_ENABLE_HOST_METRICS:-false}"; then
+	[[ -d /hostfs/proc || -d /hostfs/sys ]] || fail "Host metrics are enabled, but /hostfs is not mounted. Set the Host Root Path advanced field to /."
+	metrics_receivers+=("hostmetrics")
+	receiver_blocks+=$'\n'"  hostmetrics:
+    collection_interval: ${SIGNOZ_AGENT_HOST_COLLECTION_INTERVAL}
+    root_path: /hostfs
+    scrapers:
+      cpu: {}
+      disk: {}
+      filesystem: {}
+      load: {}
+      memory: {}
+      network: {}
+      paging: {}
+      process:
+        mute_process_name_error: true
+        mute_process_exe_error: true
+        mute_process_io_error: true
+        mute_process_user_error: true
+      processes: {}"
+fi
+
+if is_true "${SIGNOZ_AGENT_ENABLE_DOCKER_METRICS:-false}"; then
+	[[ -S /var/run/docker.sock ]] || fail "Docker metrics are enabled, but /var/run/docker.sock is not mounted."
+	metrics_receivers+=("docker_stats")
+	receiver_blocks+=$'\n'"  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: ${SIGNOZ_AGENT_DOCKER_COLLECTION_INTERVAL}
+    timeout: 20s"
+	if [[ -n ${SIGNOZ_AGENT_DOCKER_EXCLUDED_IMAGES-} ]]; then
+		receiver_blocks+=$'\n'"    excluded_images:"
+		IFS=',' read -r -a excluded_images <<<"${SIGNOZ_AGENT_DOCKER_EXCLUDED_IMAGES}"
+		for image in "${excluded_images[@]}"; do
+			image="$(trim "${image}")"
+			[[ -n ${image} ]] || continue
+			receiver_blocks+=$'\n'"      - ${image}"
+		done
+	fi
+fi
+
+if is_true "${SIGNOZ_AGENT_ENABLE_DOCKER_LOGS:-false}"; then
+	[[ -d /var/lib/docker/containers ]] || fail "Docker logs are enabled, but /var/lib/docker/containers is not mounted."
+	logs_receivers+=("filelog/docker")
+	receiver_blocks+=$'\n'"  filelog/docker:
+    include:
+      - /var/lib/docker/containers/*/*-json.log
+    start_at: end
+    include_file_name: false
+    operators:
+      - type: json_parser
+        parse_from: body
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: 2006-01-02T15:04:05.999999999Z07:00"
+fi
+
+if [[ -n ${SIGNOZ_AGENT_PROMETHEUS_TARGETS-} ]]; then
+	metrics_receivers+=("prometheus/simple")
+	receiver_blocks+=$'\n'"  prometheus/simple:
+    config:
+      global:
+        scrape_interval: ${SIGNOZ_AGENT_PROMETHEUS_SCRAPE_INTERVAL}
+      scrape_configs:
+        - job_name: signoz_agent_targets
+          metrics_path: ${SIGNOZ_AGENT_PROMETHEUS_METRICS_PATH}
+          static_configs:
+            - targets:"
+	IFS=',' read -r -a prometheus_targets <<<"${SIGNOZ_AGENT_PROMETHEUS_TARGETS}"
+	for target in "${prometheus_targets[@]}"; do
+		target="$(trim "${target}")"
+		[[ -n ${target} ]] || continue
+		receiver_blocks+=$'\n'"                - ${target}"
+	done
+fi
+
+exporter_name="otlp/signoz"
+pipeline_processors="memory_limiter, resourcedetection, batch"
+if [[ -n ${SIGNOZ_AGENT_RESOURCE_ATTRIBUTES-} || -n ${SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT-} ]]; then
+	pipeline_processors="memory_limiter, resource/signoz, resourcedetection, batch"
+fi
+exporter_block="  otlp/signoz:
+    endpoint: ${SIGNOZ_AGENT_ENDPOINT}
+    tls:
+      insecure: ${SIGNOZ_AGENT_INSECURE}"
+if [[ ${SIGNOZ_AGENT_PROTOCOL} == "http/protobuf" ]]; then
+	exporter_name="otlphttp/signoz"
+	exporter_block="  otlphttp/signoz:
+    endpoint: ${SIGNOZ_AGENT_ENDPOINT}
+    tls:
+      insecure: ${SIGNOZ_AGENT_INSECURE}"
+elif [[ ${SIGNOZ_AGENT_PROTOCOL} != "grpc" ]]; then
+	fail "SIGNOZ_AGENT_PROTOCOL must be grpc or http/protobuf."
+fi
+
+{
+	cat <<EOF
+extensions:
+  health_check:
+    endpoint: ${SIGNOZ_AGENT_HEALTH_ENDPOINT}
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: ${SIGNOZ_AGENT_OTLP_GRPC_ENDPOINT}
+      http:
+        endpoint: ${SIGNOZ_AGENT_OTLP_HTTP_ENDPOINT}
+${receiver_blocks}
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${SIGNOZ_AGENT_MEMORY_LIMIT_MIB}
+EOF
+	append_resource_attributes
+	cat <<EOF
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+    override: false
+  batch:
+    send_batch_size: ${SIGNOZ_AGENT_BATCH_SEND_SIZE}
+    timeout: ${SIGNOZ_AGENT_BATCH_TIMEOUT}
+
+exporters:
+${exporter_block}
+EOF
+	append_headers "    "
+	cat <<EOF
+
+service:
+  telemetry:
+    logs:
+      level: ${SIGNOZ_AGENT_LOG_LEVEL}
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [$(
+		IFS=,
+		echo "${traces_receivers[*]}"
+	)]
+      processors: [${pipeline_processors}]
+      exporters: [${exporter_name}]
+    metrics:
+      receivers: [$(
+		IFS=,
+		echo "${metrics_receivers[*]}"
+	)]
+      processors: [${pipeline_processors}]
+      exporters: [${exporter_name}]
+    logs:
+      receivers: [$(
+		IFS=,
+		echo "${logs_receivers[*]}"
+	)]
+      processors: [${pipeline_processors}]
+      exporters: [${exporter_name}]
+EOF
+} >"${GENERATED_CONFIG}"
+
+{
+	printf 'mode=generated\n'
+	printf 'protocol=%s\n' "${SIGNOZ_AGENT_PROTOCOL}"
+	printf 'endpoint=%s\n' "${SIGNOZ_AGENT_ENDPOINT}"
+	printf 'host_metrics=%s\n' "${SIGNOZ_AGENT_ENABLE_HOST_METRICS:-false}"
+	printf 'docker_metrics=%s\n' "${SIGNOZ_AGENT_ENABLE_DOCKER_METRICS:-false}"
+	printf 'docker_logs=%s\n' "${SIGNOZ_AGENT_ENABLE_DOCKER_LOGS:-false}"
+} >"${DIAGNOSTICS_FILE}"
+printf 'ready\n' >"${STATUS_FILE}"
+
+printf '[signoz-agent] Starting collector with generated config at %s\n' "${GENERATED_CONFIG}"
+exec /usr/local/bin/otelcol-contrib --config "${GENERATED_CONFIG}"

@@ -1,0 +1,18 @@
+[upstream]
+name = "OpenTelemetry Collector Contrib"
+type = "github-release"
+repo = "open-telemetry/opentelemetry-collector-releases"
+release_url = "https://github.com/open-telemetry/opentelemetry-collector-releases/releases"
+image = "otel/opentelemetry-collector-contrib"
+version_key = "UPSTREAM_OTELCOL_VERSION"
+version_strip_prefix = "v"
+digest_key = "UPSTREAM_OTELCOL_DIGEST"
+stable_only = true
+digest_source = "dockerhub-manifest"
+# SigNoz docs currently pin this collector image; newer upstream OTel releases
+# should be reviewed against SigNoz's Docker collection-agent guidance before a
+# wrapper bump.
+strategy = "notify"
+
+[notifications]
+release_notes_url = "https://github.com/open-telemetry/opentelemetry-collector-releases/releases"

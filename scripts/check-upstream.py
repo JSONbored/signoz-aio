@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import configparser
 import json
 import os
@@ -11,6 +12,11 @@ import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from typing import NoReturn
+
+try:
+    from components import get_component
+except ImportError:  # pragma: no cover - used when imported as a package module
+    from scripts.components import get_component
 
 ROOT = pathlib.Path(".")
 UPSTREAM_FILE = ROOT / "upstream.toml"
@@ -415,12 +421,20 @@ def parse_upstream_toml(path: pathlib.Path) -> dict[str, dict[str, object]]:
 def latest_version_for_config(upstream: dict[str, object], stable_only: bool) -> str:
     upstream_type = str(upstream.get("type", "")).strip()
     if upstream_type == "github-tag":
-        return latest_github_tag(str(upstream.get("repo", "")).strip(), stable_only)
-    if upstream_type == "github-release":
-        return latest_github_release(str(upstream.get("repo", "")).strip(), stable_only)
-    if upstream_type == "ghcr-container-tag":
-        return latest_ghcr_tag(str(upstream.get("image", "")).strip(), stable_only)
-    fail(f"Unsupported upstream type: {upstream_type}")
+        latest = latest_github_tag(str(upstream.get("repo", "")).strip(), stable_only)
+    elif upstream_type == "github-release":
+        latest = latest_github_release(
+            str(upstream.get("repo", "")).strip(), stable_only
+        )
+    elif upstream_type == "ghcr-container-tag":
+        latest = latest_ghcr_tag(str(upstream.get("image", "")).strip(), stable_only)
+    else:
+        fail(f"Unsupported upstream type: {upstream_type}")
+
+    strip_prefix = str(upstream.get("version_strip_prefix", "")).strip()
+    if strip_prefix and latest.startswith(strip_prefix):
+        return latest.removeprefix(strip_prefix)
+    return latest
 
 
 def latest_digest_for_config(upstream: dict[str, object], version: str) -> str:
@@ -444,6 +458,19 @@ def latest_digest_for_config(upstream: dict[str, object], version: str) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Check pinned upstream versions.")
+    parser.add_argument(
+        "--component",
+        default="signoz-aio",
+        help="Component name from components.toml.",
+    )
+    args = parser.parse_args()
+
+    global DOCKERFILE, UPSTREAM_FILE
+    component = get_component(args.component)
+    DOCKERFILE = ROOT / component.dockerfile
+    UPSTREAM_FILE = ROOT / component.upstream_config
+
     if not UPSTREAM_FILE.exists():
         fail("Missing upstream.toml")
 
@@ -492,21 +519,29 @@ def main() -> None:
     if not release_notes and upstream.get("repo"):
         release_notes = f"https://github.com/{upstream['repo']}/releases"
 
-    branch_name = f"codex/upstream-{latest_version}"
-    pr_title = f"chore(deps): bump upstream to {latest_version}"
+    branch_name = f"codex/upstream-{component.name}-{latest_version}"
+    pr_title = f"chore(deps): bump {component.name} upstream to {latest_version}"
     if (
         latest_version == current_version
         and latest_digest
         and latest_digest != current_digest
     ):
-        branch_name = f"codex/upstream-{latest_version}-digest-refresh"
-        pr_title = f"chore(deps): refresh upstream digest for {latest_version}"
+        branch_name = f"codex/upstream-{component.name}-{latest_version}-digest-refresh"
+        pr_title = (
+            f"chore(deps): refresh {component.name} upstream digest for "
+            f"{latest_version}"
+        )
     elif latest_version == current_version and dependency_mismatches:
-        branch_name = f"codex/upstream-{latest_version}-compose-sync"
-        pr_title = f"chore(deps): sync bundled images with SigNoz {latest_version}"
+        branch_name = f"codex/upstream-{component.name}-{latest_version}-compose-sync"
+        pr_title = (
+            f"chore(deps): sync {component.name} bundled images with "
+            f"{latest_version}"
+        )
 
     write_outputs(
         {
+            "component": component.name,
+            "dockerfile": str(component.dockerfile),
             "current_version": current_version,
             "latest_version": latest_version,
             "current_digest": current_digest,

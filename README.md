@@ -1,15 +1,38 @@
-# signoz-aio - Unraid Community Application
+# SigNoz Unraid Suite
 
 ![signoz-aio](https://socialify.git.ci/JSONbored/signoz-aio/image?custom_description=All-in-one+SigNoz+for+Unraid%3A+a+single+self-hosted+container+bundling+SigNoz+UI%2FAPI%2C+OpenTelemetry+collector%2C+ClickHouse%2C+and+ZooKeeper.&custom_language=Dockerfile&description=1&font=Raleway&forks=1&issues=1&language=1&logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F76905799%3Fs%3D200%26v%3D4&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
 
+This repo packages two Unraid Community Applications for SigNoz:
+
+- `signoz-aio`: the full self-hosted backend, UI, collector, ClickHouse, and ZooKeeper stack.
+- `signoz-agent`: a lightweight OpenTelemetry Collector companion for remote hosts, stricter separation, and custom edge collection.
+
+Both templates use the same support surface: [JSONbored/signoz-aio issues](https://github.com/JSONbored/signoz-aio/issues).
+
+## Templates
+
+### signoz-aio
+
 `signoz-aio` packages the full self-hosted SigNoz stack into a single Unraid-friendly image and CA app template.
 
-This image follows the current official SigNoz Docker deployment instead of inventing a custom rewrite. It supervises the services SigNoz currently expects for a complete small-to-medium self-hosted install:
+The image follows the current official SigNoz Docker deployment instead of inventing a custom rewrite. It supervises the services SigNoz currently expects for a complete small-to-medium self-hosted install:
 
 - `signoz`
 - `signoz-otel-collector`
 - `clickhouse`
 - `zookeeper`
+
+### signoz-agent
+
+`signoz-agent` packages the official OpenTelemetry Collector Contrib collector as a SigNoz-focused Unraid companion app.
+
+Use it when you want to:
+
+- collect telemetry from remote machines and forward it to `signoz-aio`
+- keep host/Docker mounts out of the main SigNoz backend container
+- run advanced collector pipelines without replacing the backend AIO template
+
+The agent defaults to no host root, Docker socket, or Docker log mounts. Those are advanced opt-in settings only.
 
 ## What Is Inside The Image
 
@@ -90,6 +113,7 @@ The single-image runtime is implemented and validated.
   - OTLP listener readiness
   - restart and persistence
   - advanced runtime preflight paths
+- `signoz-agent` has a separate image, template, generated collector config, and Docker-backed integration tests for forwarding, Prometheus scraping, and fail-fast security checks
 
 ## First-Run Notes
 
@@ -111,6 +135,7 @@ The easiest ingestion paths are:
   - `http://YOUR-UNRAID-IP:4317` for OTLP gRPC
   - `http://YOUR-UNRAID-IP:4318` for OTLP HTTP
 - run a separate OpenTelemetry Collector or Alloy agent on the Unraid host
+- run `signoz-agent` on this host or another machine
 - configure that agent to:
   - scrape Prometheus endpoints
   - collect Docker container metrics
@@ -136,21 +161,30 @@ flowchart LR
     F --> H["ClickHouse + SQLite + ZooKeeper"]
 ```
 
-For most users, this is the sweet spot:
+For most single-host users, this is the sweet spot:
 
 - `signoz-aio` stays the central backend and UI
 - the optional built-in local host agent can handle host collection on the same Unraid machine
 - instrumented apps can either send directly to SigNoz or rely on the local host agent for extra collection
 
+For remote hosts or stricter separation, run `signoz-agent` and point it at the `signoz-aio` OTLP endpoint.
+
 ## Releases
 
 `signoz-aio` uses upstream-version-plus-AIO-revision releases such as `v0.120.0-aio.1`.
+
+`signoz-agent` uses upstream-collector-version-plus-agent-revision releases such as `0.139.0-agent.1`.
 
 Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
 
 See [docs/releases.md](docs/releases.md) for the release workflow details.
 
-If you want to monitor other hosts later, a separate `signoz-agent` companion app still makes sense.
+The two images publish independently to GHCR and Docker Hub:
+
+- `ghcr.io/jsonbored/signoz-aio`
+- `ghcr.io/jsonbored/signoz-agent`
+- `jsonbored/signoz-aio`
+- `jsonbored/signoz-agent`
 
 ## Quick Start Paths
 
@@ -229,6 +263,7 @@ The optional built-in local host agent can collect from the same Unraid machine 
 
 - [Ingestion guide](docs/ingestion-guide.md)
 - [Configuration matrix](docs/configuration-matrix.md)
+- [signoz-agent component README](components/signoz-agent/README.md)
 - [Docker / host collector example](docs/examples/otelcol-docker-host-agent.yaml)
 - [Prometheus scrape collector example](docs/examples/otelcol-prometheus-scrape.yaml)
 

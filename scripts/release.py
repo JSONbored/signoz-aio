@@ -6,11 +6,15 @@ import pathlib
 import re
 import subprocess  # nosec - release helpers shell out only to trusted local git
 
+try:
+    from components import get_component
+except ImportError:  # pragma: no cover - used when imported as a package module
+    from scripts.components import get_component
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 DEFAULT_DOCKERFILE = ROOT / "Dockerfile"
 DEFAULT_UPSTREAM = ROOT / "upstream.toml"
-AIO_TAG_PATTERN = "*-aio.*"
 GIT_BIN = "/usr/bin/git"
 
 
@@ -57,9 +61,14 @@ def git_tags() -> list[str]:
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
-def latest_aio_release_tag() -> str | None:
+def latest_component_release_tag(suffix: str = "aio") -> str | None:
     completed = git_completed(
-        "describe", "--tags", "--abbrev=0", "--match", AIO_TAG_PATTERN, "HEAD"
+        "describe",
+        "--tags",
+        "--abbrev=0",
+        "--match",
+        f"*-{suffix}.*",
+        "HEAD",
     )
     if completed.returncode != 0:
         return None
@@ -67,9 +76,11 @@ def latest_aio_release_tag() -> str | None:
     return tag or None
 
 
-def latest_release_tag(dockerfile: pathlib.Path, upstream: pathlib.Path) -> str | None:
+def latest_release_tag(
+    dockerfile: pathlib.Path, upstream: pathlib.Path, suffix: str = "aio"
+) -> str | None:
     upstream_version = read_upstream_version(dockerfile, upstream)
-    pattern = re.compile(rf"^{re.escape(upstream_version)}-aio\.(\d+)$")
+    pattern = re.compile(rf"^{re.escape(upstream_version)}-{re.escape(suffix)}\.(\d+)$")
     matches: list[tuple[int, str]] = []
     for tag in git_tags():
         match = pattern.match(tag)
@@ -81,24 +92,28 @@ def latest_release_tag(dockerfile: pathlib.Path, upstream: pathlib.Path) -> str 
     return matches[-1][1]
 
 
-def has_unreleased_changes(dockerfile: pathlib.Path, upstream: pathlib.Path) -> bool:
-    latest_tag = latest_aio_release_tag()
+def has_unreleased_changes(
+    dockerfile: pathlib.Path, upstream: pathlib.Path, suffix: str = "aio"
+) -> bool:
+    latest_tag = latest_component_release_tag(suffix)
     if latest_tag is None:
         return True
     output = git_output("log", "--format=%s", f"{latest_tag}..HEAD")
     return any(line.strip() for line in output.splitlines())
 
 
-def next_release_version(dockerfile: pathlib.Path, upstream: pathlib.Path) -> str:
+def next_release_version(
+    dockerfile: pathlib.Path, upstream: pathlib.Path, suffix: str = "aio"
+) -> str:
     upstream_version = read_upstream_version(dockerfile, upstream)
-    pattern = re.compile(rf"^{re.escape(upstream_version)}-aio\.(\d+)$")
+    pattern = re.compile(rf"^{re.escape(upstream_version)}-{re.escape(suffix)}\.(\d+)$")
     revisions = []
     for tag in git_tags():
         match = pattern.match(tag)
         if match:
             revisions.append(int(match.group(1)))
     next_revision = max(revisions, default=0) + 1
-    return f"{upstream_version}-aio.{next_revision}"
+    return f"{upstream_version}-{suffix}.{next_revision}"
 
 
 def latest_changelog_version(changelog: pathlib.Path) -> str:
@@ -186,6 +201,10 @@ def find_release_target_commit(version: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Release helpers for AIO repos.")
+    parser.add_argument(
+        "--component",
+        help="Optional component name from components.toml.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     upstream_parser = subparsers.add_parser("upstream-version")
     upstream_parser.add_argument(
@@ -223,18 +242,28 @@ def main() -> None:
     target_parser = subparsers.add_parser("find-release-target-commit")
     target_parser.add_argument("version")
     args = parser.parse_args()
+
+    dockerfile = getattr(args, "dockerfile", DEFAULT_DOCKERFILE)
+    upstream_config = getattr(args, "upstream_config", DEFAULT_UPSTREAM)
+    suffix = "aio"
+    if args.component:
+        component = get_component(args.component)
+        dockerfile = ROOT / component.dockerfile
+        upstream_config = ROOT / component.upstream_config
+        suffix = component.release_suffix
+
     if args.command == "upstream-version":
-        print(read_upstream_version(args.dockerfile, args.upstream_config))
+        print(read_upstream_version(dockerfile, upstream_config))
     elif args.command == "next-version":
-        print(next_release_version(args.dockerfile, args.upstream_config))
+        print(next_release_version(dockerfile, upstream_config, suffix))
     elif args.command == "has-unreleased-changes":
         print(
             "true"
-            if has_unreleased_changes(args.dockerfile, args.upstream_config)
+            if has_unreleased_changes(dockerfile, upstream_config, suffix)
             else "false"
         )
     elif args.command == "latest-aio-tag":
-        latest_tag = latest_aio_release_tag()
+        latest_tag = latest_component_release_tag(suffix)
         if latest_tag:
             print(latest_tag)
     elif args.command == "latest-changelog-version":

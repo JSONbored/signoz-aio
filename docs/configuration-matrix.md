@@ -272,3 +272,46 @@ locally boot-test through environment propagation.
 | `USE_SPAN_METRICS`                            | `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_USE__SPAN__METRICS`                                                      |
 | `KAFKA_SPAN_EVAL`                             | `SIGNOZ_FLAGGER_CONFIG_BOOLEAN_KAFKA__SPAN__EVAL`                                                       |
 | `RULES_EVAL_DELAY`                            | `SIGNOZ_RULER_EVAL__DELAY`                                                                              |
+
+## signoz-agent Companion Template
+
+`signoz-agent` is a separate component in this repo. It exposes the supported
+single-node OpenTelemetry Collector companion surface while keeping host and
+Docker access blank by default.
+
+| Setting                                   | Status  | Default         | Notes                                                                 |
+| ----------------------------------------- | ------- | --------------- | --------------------------------------------------------------------- |
+| `SIGNOZ_AGENT_ENDPOINT`                   | exposed | blank           | Required destination OTLP endpoint, usually `signoz-aio` `HOST:4317`. |
+| `SIGNOZ_AGENT_PROTOCOL`                   | exposed | `grpc`          | Dropdown: `grpc` or `http/protobuf`.                                  |
+| `SIGNOZ_AGENT_INSECURE`                   | exposed | `true`          | Plain/self-hosted endpoints default to insecure transport.            |
+| `SIGNOZ_AGENT_HEADERS`                    | exposed | blank           | Optional masked comma-separated exporter headers.                     |
+| `SIGNOZ_AGENT_INGESTION_KEY`              | exposed | blank           | Optional masked `signoz-ingestion-key` header.                        |
+| `SIGNOZ_AGENT_LOG_LEVEL`                  | exposed | `info`          | Dropdown: `info`, `debug`, `warn`, `error`.                           |
+| `SIGNOZ_AGENT_RESOURCE_ATTRIBUTES`        | exposed | blank           | Comma-separated resource attributes added by the resource processor.  |
+| `SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT`     | exposed | blank           | Adds `deployment.environment` when set.                               |
+| `SIGNOZ_AGENT_BATCH_SEND_SIZE`            | exposed | `8192`          | Collector batch send size.                                            |
+| `SIGNOZ_AGENT_BATCH_TIMEOUT`              | exposed | `5s`            | Collector batch timeout.                                              |
+| `SIGNOZ_AGENT_MEMORY_LIMIT_MIB`           | exposed | `512`           | Memory limiter cap.                                                   |
+| `SIGNOZ_AGENT_OTLP_GRPC_ENDPOINT`         | exposed | `0.0.0.0:4317`  | Internal gRPC receiver listen endpoint.                               |
+| `SIGNOZ_AGENT_OTLP_HTTP_ENDPOINT`         | exposed | `0.0.0.0:4318`  | Internal HTTP receiver listen endpoint.                               |
+| `SIGNOZ_AGENT_HEALTH_ENDPOINT`            | exposed | `0.0.0.0:13133` | Internal health extension endpoint.                                   |
+| `SIGNOZ_AGENT_ENABLE_HOST_METRICS`        | exposed | `false`         | Opt-in. Fails fast unless `/hostfs` is mounted.                       |
+| `/hostfs`                                 | exposed | blank           | Optional read-only host root mount.                                   |
+| `SIGNOZ_AGENT_HOST_COLLECTION_INTERVAL`   | exposed | `30s`           | Hostmetrics collection interval.                                      |
+| `SIGNOZ_AGENT_ENABLE_DOCKER_METRICS`      | exposed | `false`         | Opt-in. Fails fast unless Docker socket is mounted.                   |
+| `/var/run/docker.sock`                    | exposed | blank           | Optional read-only Docker socket mount; security-sensitive.           |
+| `SIGNOZ_AGENT_DOCKER_COLLECTION_INTERVAL` | exposed | `30s`           | Docker metrics collection interval.                                   |
+| `SIGNOZ_AGENT_DOCKER_EXCLUDED_IMAGES`     | exposed | blank           | Optional comma-separated docker_stats image exclusions.               |
+| `SIGNOZ_AGENT_ENABLE_DOCKER_LOGS`         | exposed | `false`         | Opt-in. Fails fast unless Docker container logs are mounted.          |
+| `/var/lib/docker/containers`              | exposed | blank           | Optional read-only Docker JSON log path.                              |
+| `SIGNOZ_AGENT_PROMETHEUS_TARGETS`         | exposed | blank           | Optional comma-separated scrape targets.                              |
+| `SIGNOZ_AGENT_PROMETHEUS_METRICS_PATH`    | exposed | `/metrics`      | Metrics path for simple scrape targets.                               |
+| `SIGNOZ_AGENT_PROMETHEUS_SCRAPE_INTERVAL` | exposed | `30s`           | Prometheus scrape interval.                                           |
+| `SIGNOZ_AGENT_CONFIG_MODE`                | exposed | `generated`     | Dropdown: `generated` or `custom`.                                    |
+| `SIGNOZ_AGENT_CUSTOM_CONFIG_PATH`         | exposed | blank           | Required only when custom config mode is enabled.                     |
+
+Not exposed in CA: arbitrary OpenTelemetry Collector component blocks beyond
+custom config mode, including container-name-specific Docker exclusions that are
+not cleanly represented by the stock `docker_stats` receiver. Users who need
+fully custom receivers/processors/exporters should mount a collector config and
+set `SIGNOZ_AGENT_CONFIG_MODE=custom`.

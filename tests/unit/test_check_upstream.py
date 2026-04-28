@@ -110,6 +110,29 @@ def test_compose_dependency_mismatches_detects_tag_and_digest_drift(
     }
 
 
+def test_latest_version_for_config_can_strip_release_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    check_upstream = load_check_upstream()
+    monkeypatch.setattr(
+        check_upstream,
+        "latest_github_release",
+        lambda _repo, _stable_only: "v0.139.0",
+    )
+
+    assert (  # nosec B101
+        check_upstream.latest_version_for_config(
+            {
+                "type": "github-release",
+                "repo": "open-telemetry/opentelemetry-collector-releases",
+                "version_strip_prefix": "v",
+            },
+            True,
+        )
+        == "0.139.0"
+    )
+
+
 def test_renovate_does_not_update_upstream_compose_managed_images() -> None:
     config = json.loads(Path("renovate.json").read_text())
     disabled_rules = [

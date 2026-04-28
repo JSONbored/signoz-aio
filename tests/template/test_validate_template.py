@@ -11,3 +11,11 @@ def test_validate_template_script_passes() -> None:
         [sys.executable, "scripts/validate-template.py"], cwd=REPO_ROOT
     )
     assert "signoz-aio.xml parsed successfully" in result.stdout  # nosec B101
+
+
+def test_validate_all_templates_script_passes() -> None:
+    result = run_command(
+        [sys.executable, "scripts/validate-template.py", "--all"], cwd=REPO_ROOT
+    )
+    assert "signoz-aio.xml parsed successfully" in result.stdout  # nosec B101
+    assert "signoz-agent.xml parsed successfully" in result.stdout  # nosec B101

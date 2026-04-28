@@ -36,6 +36,24 @@ Mounting `/var/run/docker.sock` is powerful and sensitive. It gives the containe
 Docker control access, so enable it only when the local host telemetry benefit is
 worth that security tradeoff.
 
+Use the separate `signoz-agent` template instead when you want to monitor remote
+machines, keep host/Docker mounts out of the backend container, or maintain a
+collector lifecycle separate from the SigNoz UI/database stack.
+
+## Companion Agent
+
+`signoz-agent` generates an OpenTelemetry Collector config from Unraid template
+variables and forwards OTLP data to `signoz-aio` or another SigNoz endpoint. Its
+beginner surface is intentionally small: endpoint, appdata, and OTLP ports. Host
+metrics, Docker metrics, Docker logs, Prometheus scraping, custom headers, cloud
+ingestion keys, resource attributes, and custom collector config mode are all
+advanced opt-in settings.
+
+The agent template also leaves `/hostfs`, `/var/run/docker.sock`, and
+`/var/lib/docker/containers` blank by default. Enabling a receiver without the
+matching mount fails fast instead of silently running a misleading partial
+collector.
+
 ## Collector Overrides
 
 The collector options expose the upstream ClickHouse DSNs, migration timeout,

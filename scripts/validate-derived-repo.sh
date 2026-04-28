@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2312
 set -euo pipefail
 
 repo_root="${1:-.}"
@@ -36,6 +37,9 @@ require_file "tests/unit/test_ci_flags.py"
 require_file "tests/template/test_validate_template.py"
 require_file "tests/integration/test_container_runtime.py"
 require_file "scripts/validate-template.py"
+if [[ -f components.toml ]]; then
+	require_file "scripts/components.py"
+fi
 require_file "scripts/update-template-changes.py"
 require_file ".github/FUNDING.yml"
 require_file "SECURITY.md"
@@ -48,6 +52,20 @@ require_file "renovate.json"
 require_absent ".github/CODEOWNERS"
 
 effective_template_xml="${TEMPLATE_XML-}"
+component_template_xml=()
+if [[ -f components.toml ]]; then
+	while IFS= read -r template_path; do
+		[[ -n ${template_path} ]] || continue
+		component_template_xml+=("${template_path}")
+	done < <(
+		python3 - <<'PY'
+from scripts.components import load_components
+
+for component in load_components():
+    print(component.template)
+PY
+	)
+fi
 if [[ -z ${effective_template_xml} ]]; then
 	repo_name="${PWD##*/}"
 	inferred_repo_xml="${repo_name}.xml"
@@ -80,6 +98,10 @@ if [[ -n ${effective_template_xml} ]]; then
 fi
 
 xml_files=()
+for xml_path in "${component_template_xml[@]}"; do
+	require_file "${xml_path}"
+	xml_files+=("${xml_path}")
+done
 if [[ -n ${effective_template_xml} ]] && [[ -f ${effective_template_xml} ]]; then
 	xml_files+=("${effective_template_xml}")
 fi

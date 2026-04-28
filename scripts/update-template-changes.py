@@ -7,6 +7,11 @@ import pathlib
 import re
 import sys
 
+try:
+    from components import get_component
+except ImportError:  # pragma: no cover - used when imported as a package module
+    from scripts.components import get_component
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 GENERATED_NOTE = (
@@ -121,9 +126,17 @@ def main() -> int:
     parser.add_argument("version", help="Release version (example: v0.2.0)")
     parser.add_argument("--changelog", type=pathlib.Path, default=DEFAULT_CHANGELOG)
     parser.add_argument("--template", type=pathlib.Path, default=None)
+    parser.add_argument(
+        "--component",
+        help="Component name from components.toml whose template should be updated.",
+    )
     args = parser.parse_args()
 
-    template_path = args.template or resolve_template_path()
+    template_path = args.template
+    if template_path is None and args.component:
+        template_path = ROOT / get_component(args.component).template
+    if template_path is None:
+        template_path = resolve_template_path()
     notes = extract_release_notes(args.version, args.changelog)
     body = build_changes_body(args.version, notes, args.changelog)
     update_template(template_path, encode_for_template(body))

@@ -1,4 +1,4 @@
-name: Publish Release / SigNoz-AIO
+name: Publish Release / SigNoz Agent
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  RELEASE_COMPONENT: signoz-aio
+  RELEASE_COMPONENT: signoz-agent
 
 jobs:
   publish-release:
