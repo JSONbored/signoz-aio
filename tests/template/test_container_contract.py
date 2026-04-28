@@ -102,11 +102,43 @@ def test_unraid_metadata_contract_is_complete_and_unprivileged() -> None:
         "Project",
         "TemplateURL",
         "Icon",
+        "ExtraSearchTerms",
+        "Requires",
+        "DonateText",
+        "DonateLink",
         "Category",
         "WebUI",
     ):
         value = root.findtext(tag)
         assert value and value.strip(), f"{tag} must be populated"  # nosec B101
+    assert root.findtext("Category") == "Monitoring: Tools:Utilities"  # nosec B101
+    assert root.findtext("DonateText") == (  # nosec B101
+        "Support JSONbored on GitHub Sponsors."
+    )
+    assert root.findtext("DonateLink") == (  # nosec B101
+        "https://github.com/sponsors/JSONbored"
+    )
+
+    search_terms = root.findtext("ExtraSearchTerms") or ""
+    for term in (
+        "observability",
+        "opentelemetry",
+        "traces",
+        "metrics",
+        "logs",
+        "clickhouse",
+        "alerts",
+    ):
+        assert term in search_terms  # nosec B101
+
+    requires = root.findtext("Requires") or ""
+    for term in (
+        "4GB Docker memory",
+        "/appdata",
+        "/var/run/docker.sock",
+        "Docker control access",
+    ):
+        assert term in requires  # nosec B101
     assert (
         _config_elements()
     ), "template must expose configurable settings"  # nosec B101

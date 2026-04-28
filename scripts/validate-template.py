@@ -22,6 +22,19 @@ LEGACY_CHANGELOG_MARKERS = (
     "GitHub Releases",
     "Full changelog and release notes:",
 )
+EXPECTED_CATEGORY = "Monitoring: Tools:Utilities"
+EXPECTED_DONATE_TEXT = "Support JSONbored on GitHub Sponsors."
+EXPECTED_DONATE_LINK = "https://github.com/sponsors/JSONbored"
+EXPECTED_EXTRA_SEARCH_TERMS = (
+    "observability monitoring telemetry opentelemetry otel traces metrics logs apm "
+    "clickhouse dashboards alerts collector"
+)
+REQUIRED_REQUIRES_TERMS = (
+    "4GB Docker memory",
+    "Back up /appdata",
+    "/var/run/docker.sock",
+    "Docker control access",
+)
 
 REQUIRED_TEXT_FIELDS = (
     "Support",
@@ -30,6 +43,10 @@ REQUIRED_TEXT_FIELDS = (
     "Category",
     "TemplateURL",
     "Icon",
+    "ExtraSearchTerms",
+    "Requires",
+    "DonateText",
+    "DonateLink",
     "Changes",
 )
 
@@ -326,8 +343,21 @@ def main() -> int:
         return fail(f"{xml_path.name} Project should point at the signoz-aio repo")
     if root.findtext("Support") != "https://github.com/JSONbored/signoz-aio/issues":
         return fail(f"{xml_path.name} Support should point at signoz-aio issues")
-    if "Monitoring" not in (root.findtext("Category") or ""):
-        return fail(f"{xml_path.name} Category should include Monitoring")
+    if root.findtext("Category") != EXPECTED_CATEGORY:
+        return fail(f"{xml_path.name} Category should be {EXPECTED_CATEGORY}")
+    if root.findtext("DonateText") != EXPECTED_DONATE_TEXT:
+        return fail(f"{xml_path.name} DonateText should point users at GitHub Sponsors")
+    if root.findtext("DonateLink") != EXPECTED_DONATE_LINK:
+        return fail(f"{xml_path.name} DonateLink should point at JSONbored sponsors")
+    if root.findtext("ExtraSearchTerms") != EXPECTED_EXTRA_SEARCH_TERMS:
+        return fail(
+            f"{xml_path.name} ExtraSearchTerms should match the CA search contract"
+        )
+
+    requires = root.findtext("Requires") or ""
+    for term in REQUIRED_REQUIRES_TERMS:
+        if term not in requires:
+            return fail(f"{xml_path.name} Requires should mention {term}")
 
     changes = (root.findtext("Changes") or "").strip()
     if GENERATED_CHANGELOG_NOTE not in changes:
