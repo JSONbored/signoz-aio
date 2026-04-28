@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from tests.helpers import (
+    container_path_exists,
     create_docker_volume,
     docker_available,
     docker_image_exists,
@@ -24,6 +25,7 @@ from tests.helpers import (
 )
 
 IMAGE_TAG = os.environ.get("SIGNOZ_AGENT_IMAGE_TAG", "signoz-agent:pytest")
+AIO_IMAGE_TAG = os.environ.get("SIGNOZ_AIO_IMAGE_TAG", "signoz-aio:pytest")
 pytestmark = pytest.mark.integration
 
 
@@ -107,6 +109,17 @@ def ensure_agent_image() -> None:
     )
 
 
+def ensure_aio_image() -> None:
+    if os.environ.get("AIO_PYTEST_USE_PREBUILT_IMAGE") == "true":
+        if not docker_image_exists(AIO_IMAGE_TAG):
+            raise AssertionError(f"Expected prebuilt AIO image {AIO_IMAGE_TAG}.")
+        return
+
+    run_command(
+        ["docker", "build", "--platform", "linux/amd64", "-t", AIO_IMAGE_TAG, "."]
+    )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def build_image() -> None:
     if not docker_available():
@@ -135,6 +148,95 @@ def wait_for_http(url: str, *, timeout: int = 90) -> None:
             return
         time.sleep(1)
     raise AssertionError(f"HTTP endpoint did not become ready: {url}")
+
+
+def wait_for_container_path(name: str, path: str, *, timeout: int = 900) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if inspect_state(name) != "running":
+            raise AssertionError(
+                f"{name} stopped while waiting for {path}.\n{logs(name)}"
+            )
+        if container_path_exists(name, path):
+            return
+        time.sleep(2)
+    raise AssertionError(f"{name} did not create {path}.\n{logs(name)}")
+
+
+def wait_for_clickhouse_count(
+    name: str, query: str, *, minimum: int = 1, timeout: int = 180
+) -> int:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = run_command(
+            [
+                "docker",
+                "exec",
+                name,
+                "bash",
+                "-lc",
+                f"clickhouse-client --query {json.dumps(query)}",
+            ],
+            check=False,
+        )
+        if result.returncode == 0:
+            value = int((result.stdout.strip() or "0").splitlines()[-1])
+            if value >= minimum:
+                return value
+        time.sleep(2)
+    raise AssertionError(
+        f"ClickHouse query did not reach {minimum}: {query}\n{logs(name)}"
+    )
+
+
+@contextmanager
+def docker_network(prefix: str) -> Iterator[str]:
+    name = f"{prefix}-{uuid.uuid4().hex[:10]}"
+    run_command(["docker", "network", "create", name])
+    try:
+        yield name
+    finally:
+        run_command(["docker", "network", "rm", name], check=False)
+
+
+@dataclass
+class AioBackend:
+    name: str
+    ui_port: int
+    appdata_volume: str
+
+
+@contextmanager
+def aio_backend(network: str) -> Iterator[AioBackend]:
+    ensure_aio_image()
+    name = f"signoz-aio-agent-backend-{uuid.uuid4().hex[:10]}"
+    appdata_volume = create_docker_volume(f"{name}-appdata")
+    ui_port = reserve_host_port()
+    run_command(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--platform",
+            "linux/amd64",
+            "--name",
+            name,
+            "--network",
+            network,
+            "--network-alias",
+            "signoz-aio-backend",
+            "-p",
+            f"{ui_port}:8080",
+            "-v",
+            f"{appdata_volume}:/appdata",
+            AIO_IMAGE_TAG,
+        ]
+    )
+    try:
+        yield AioBackend(name=name, ui_port=ui_port, appdata_volume=appdata_volume)
+    finally:
+        run_command(["docker", "rm", "-f", name], check=False)
+        remove_docker_volume(appdata_volume)
 
 
 def wait_for_exit(name: str, *, timeout: int = 30) -> str:
@@ -166,6 +268,7 @@ def agent_container(
     *,
     env: dict[str, str] | None = None,
     extra_volumes: list[tuple[str, str, str]] | None = None,
+    network: str | None = None,
 ) -> Iterator[AgentContainer]:
     name = f"signoz-agent-pytest-{uuid.uuid4().hex[:10]}"
     appdata_volume = create_docker_volume(f"{name}-appdata")
@@ -180,17 +283,23 @@ def agent_container(
         "linux/amd64",
         "--name",
         name,
-        "--add-host",
-        "host.docker.internal:host-gateway",
-        "-p",
-        f"{grpc_port}:4317",
-        "-p",
-        f"{http_port}:4318",
-        "-p",
-        f"{health_port}:13133",
-        "-v",
-        f"{appdata_volume}:/appdata",
     ]
+    if network:
+        command.extend(["--network", network])
+    command.extend(
+        [
+            "--add-host",
+            "host.docker.internal:host-gateway",
+            "-p",
+            f"{grpc_port}:4317",
+            "-p",
+            f"{http_port}:4318",
+            "-p",
+            f"{health_port}:13133",
+            "-v",
+            f"{appdata_volume}:/appdata",
+        ]
+    )
     if extra_volumes:
         for host_path, container_path, mode in extra_volumes:
             command.extend(["-v", f"{host_path}:{container_path}:{mode}"])
@@ -362,6 +471,43 @@ def test_agent_prometheus_scrape_reaches_backend() -> None:
         ) as agent:
             wait_for_http(f"http://127.0.0.1:{agent.health_port}/")
             wait_for_backend_paths(records, {"/v1/metrics"})
+
+
+def test_agent_forwards_to_signoz_aio_backend() -> None:
+    with docker_network("signoz-agent-aio-net") as network:
+        with aio_backend(network) as aio:
+            wait_for_http(f"http://127.0.0.1:{aio.ui_port}/api/v2/readyz", timeout=900)
+            wait_for_container_path(
+                aio.name, "/appdata/.telemetrystore-migrations-complete"
+            )
+
+            with agent_container(
+                network=network,
+                env={
+                    "SIGNOZ_AGENT_ENDPOINT": "signoz-aio-backend:4317",
+                    "SIGNOZ_AGENT_PROTOCOL": "grpc",
+                    "SIGNOZ_AGENT_RESOURCE_ATTRIBUTES": "service.namespace=unraid-aio",
+                    "SIGNOZ_AGENT_DEPLOYMENT_ENVIRONMENT": "pytest",
+                },
+            ) as agent:
+                wait_for_http(f"http://127.0.0.1:{agent.health_port}/")
+                emit_test_telemetry(agent.http_port)
+
+                wait_for_clickhouse_count(
+                    aio.name,
+                    "SELECT count() FROM signoz_traces.signoz_index_v3 WHERE serviceName='signoz-agent-test'",
+                    minimum=1,
+                )
+                wait_for_clickhouse_count(
+                    aio.name,
+                    "SELECT count() FROM signoz_metrics.samples_v4 WHERE metric_name='signoz_agent_test_metric'",
+                    minimum=1,
+                )
+                wait_for_clickhouse_count(
+                    aio.name,
+                    "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-agent-test-log'",
+                    minimum=1,
+                )
 
 
 def test_agent_missing_endpoint_fails_fast() -> None:

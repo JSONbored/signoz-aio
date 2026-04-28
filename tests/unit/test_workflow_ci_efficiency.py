@@ -26,13 +26,13 @@ def test_integration_and_publish_share_docker_cache_scope() -> None:
     assert "DOCKER_CACHE_SCOPE: signoz-aio-image" in workflow  # nosec B101
     assert "AGENT_DOCKER_CACHE_SCOPE: signoz-agent-image" in workflow  # nosec B101
     assert (  # nosec B101
-        workflow.count("cache-from: type=gha,scope=${{ env.DOCKER_CACHE_SCOPE }}") == 2
+        workflow.count("cache-from: type=gha,scope=${{ env.DOCKER_CACHE_SCOPE }}") == 3
     )
     assert (  # nosec B101
         workflow.count(
             "cache-to: type=gha,mode=max,scope=${{ env.DOCKER_CACHE_SCOPE }}"
         )
-        == 2
+        == 3
     )
     assert (  # nosec B101
         workflow.count("cache-from: type=gha,scope=${{ env.AGENT_DOCKER_CACHE_SCOPE }}")
@@ -62,6 +62,11 @@ def test_suite_component_paths_participate_in_ci_change_detection() -> None:
         "pytest-args: tests/integration_agent -m integration" in workflow
     )  # nosec B101
     assert "AGENT_IMAGE_NAME: jsonbored/signoz-agent" in workflow  # nosec B101
+    assert "Prebuild AIO backend image" in workflow  # nosec B101
+    assert (  # nosec B101
+        "needs.detect-changes.outputs.agent_related == 'true' || "
+        "needs.detect-changes.outputs.aio_related == 'true'"
+    ) in workflow
     assert (  # nosec B101
         "assets/*)\n                aio_related=true\n                agent_related=true"
         in workflow
