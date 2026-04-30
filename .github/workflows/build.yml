@@ -54,7 +54,7 @@ concurrency:
 
 jobs:
   aio-build:
-    uses: JSONbored/aio-fleet/.github/workflows/aio-build.yml@c8cfa2e0d5e02e5c22e54647a7f32310a10acfac
+    uses: JSONbored/aio-fleet/.github/workflows/aio-build.yml@7bfda522056a626fe401b734fbdd97239c0955b2
     permissions:
       contents: read
       packages: write
