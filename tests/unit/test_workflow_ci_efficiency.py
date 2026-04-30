@@ -3,133 +3,132 @@ from __future__ import annotations
 from pathlib import Path
 
 BUILD_WORKFLOW = Path(".github/workflows/build.yml")
-RELEASE_WORKFLOW = Path(".github/workflows/release.yml")
-PYTEST_ACTION = Path(".github/actions/run-pytest/action.yml")
-ALLOWED_CREATE_PULL_REQUEST_REF = (
-    "peter-evans/create-pull-request@"
-    "c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0"
-)
+REUSABLE_REF = "c8cfa2e0d5e02e5c22e54647a7f32310a10acfac"
+EXPECTED_INPUT_LINES = [
+    "app_slug: signoz-aio",
+    "image_name: jsonbored/signoz-aio",
+    "workflow_title: CI / SigNoz Suite",
+    "docker_cache_scope: signoz-aio-image",
+    "pytest_image_tag: signoz-aio:pytest",
+    "publish_profile: signoz-suite",
+    "upstream_name: SigNoz",
+    "image_description: Unraid-first AIO wrapper image for SigNoz with internal ClickHouse, ZooKeeper, and OpenTelemetry Collector defaults",
+    'python_version: "3.13"',
+    "trunk_org_slug: aethereal",
+    "publish_platforms: linux/amd64",
+    "checkout_submodules: false",
+    "integration_pytest_args: tests/integration -m integration",
+    "run_extended_integration: false",
+    'extended_integration_pytest_args: ""',
+    'generator_check_command: ""',
+    "upstream_digest_arg: UPSTREAM_SIGNOZ_DIGEST",
+]
+EXPECTED_AGENT_INPUT_LINES = [
+    "agent_image_name: jsonbored/signoz-agent",
+    "agent_docker_cache_scope: signoz-agent-image",
+    "agent_pytest_image_tag: signoz-agent:pytest",
+    "agent_integration_pytest_args: tests/integration_agent -m integration",
+    "agent_context: components/signoz-agent",
+    "agent_dockerfile: components/signoz-agent/Dockerfile",
+    "agent_upstream_name: OpenTelemetry Collector Contrib",
+    "agent_image_description: Unraid-friendly SigNoz OpenTelemetry collector companion for remote and local hosts",
+]
+EXPECTED_WATCHED_PATHS = [
+    ".github/workflows/**",
+    ".trunk/**",
+    "CHANGELOG.md",
+    "Dockerfile",
+    "assets/**",
+    "cliff.toml",
+    "components.toml",
+    "components/**",
+    "docs/upstream/**",
+    "pyproject.toml",
+    "renovate.json",
+    "requirements-dev.txt",
+    "rootfs/**",
+    "scripts/**",
+    "signoz-agent.xml",
+    "signoz-aio.xml",
+    "tests/**",
+    "upstream.toml",
+]
+EXPECTED_XML_PATHS = ["signoz-aio.xml", "signoz-agent.xml", "assets/**"]
+EXPECTED_EXTRA_PUBLISH_PATHS = []
+EXPECTED_CATALOG_ASSETS = [
+    "signoz-aio.xml|signoz-aio.xml",
+    "signoz-agent.xml|signoz-agent.xml",
+    "assets/app-icon.png|icons/signoz.png",
+]
 
 
-def test_pytest_jobs_use_shared_local_action() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
-
-    assert workflow.count("uses: ./.github/actions/run-pytest") == 3  # nosec B101
-    assert "Upload unit test results to Trunk" not in workflow  # nosec B101
-    assert "Upload integration test results to Trunk" not in workflow  # nosec B101
-    assert "trunk-io/analytics-uploader@" in PYTEST_ACTION.read_text()  # nosec B101
+def _workflow() -> str:
+    return BUILD_WORKFLOW.read_text()
 
 
-def test_integration_and_publish_share_docker_cache_scope() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
+def test_build_workflow_uses_pinned_aio_fleet_reusable_workflow() -> None:
+    workflow = _workflow()
 
-    assert "DOCKER_CACHE_SCOPE: signoz-aio-image" in workflow  # nosec B101
-    assert "AGENT_DOCKER_CACHE_SCOPE: signoz-agent-image" in workflow  # nosec B101
     assert (  # nosec B101
-        workflow.count("cache-from: type=gha,scope=${{ env.DOCKER_CACHE_SCOPE }}") == 3
-    )
-    assert (  # nosec B101
-        workflow.count(
-            "cache-to: type=gha,mode=max,scope=${{ env.DOCKER_CACHE_SCOPE }}"
-        )
-        == 3
-    )
-    assert (  # nosec B101
-        workflow.count("cache-from: type=gha,scope=${{ env.AGENT_DOCKER_CACHE_SCOPE }}")
-        == 2
-    )
-    assert (  # nosec B101
-        workflow.count(
-            "cache-to: type=gha,mode=max,scope=${{ env.AGENT_DOCKER_CACHE_SCOPE }}"
-        )
-        == 2
-    )
-
-
-def test_suite_component_paths_participate_in_ci_change_detection() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
-
-    assert "- components.toml" in workflow  # nosec B101
-    assert "- components/**" in workflow  # nosec B101
-    assert "- signoz-agent.xml" in workflow  # nosec B101
-    assert (
-        "aio_related: ${{ steps.filter.outputs.aio_related }}" in workflow
-    )  # nosec B101
-    assert (
-        "agent_related: ${{ steps.filter.outputs.agent_related }}" in workflow
-    )  # nosec B101
-    assert (
-        "pytest-args: tests/integration_agent -m integration" in workflow
-    )  # nosec B101
-    assert "AGENT_IMAGE_NAME: jsonbored/signoz-agent" in workflow  # nosec B101
-    assert "Prebuild AIO backend image" in workflow  # nosec B101
-    assert (  # nosec B101
-        "needs.detect-changes.outputs.agent_related == 'true' || "
-        "needs.detect-changes.outputs.aio_related == 'true'"
+        "uses: JSONbored/aio-fleet/.github/workflows/aio-build.yml@" f"{REUSABLE_REF}"
     ) in workflow
-    assert (  # nosec B101
-        "assets/*)\n                aio_related=true\n                agent_related=true"
-        in workflow
-    )
+    assert "@main" not in workflow  # nosec B101
+    assert "secrets: inherit" in workflow  # nosec B101
+    assert "packages: write" in workflow  # nosec B101
+    assert "pull-requests: write" in workflow  # nosec B101
+    assert "docker/build-push-action" not in workflow  # nosec B101
+    assert "detect-changes:" not in workflow  # nosec B101
 
 
-def test_template_only_changes_do_not_publish_component_images() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
+def test_build_workflow_passes_expected_repo_inputs() -> None:
+    workflow = _workflow()
 
-    assert (  # nosec B101
-        "needs.detect-changes.outputs.aio_related == 'true' && "
-        "needs.detect-changes.outputs.build_related == 'true' && "
-        "github.event_name == 'push'"
-    ) in workflow
-    assert (  # nosec B101
-        "needs.detect-changes.outputs.agent_related == 'true' && "
-        "needs.detect-changes.outputs.build_related == 'true' && "
-        "github.event_name == 'push'"
-    ) in workflow
-    assert (  # nosec B101
-        "needs.detect-changes.outputs.build_related == 'true' || "
-        "needs.detect-changes.outputs.xml_related == 'true') && "
-        "github.event_name == 'push'"
-    ) not in workflow
-    assert (  # nosec B101
-        "github.event_name == 'push' && github.ref == 'refs/heads/main' && "
-        "needs.detect-changes.outputs.publish_requested == 'true'))"
-    ) not in workflow
+    for line in EXPECTED_INPUT_LINES:
+        assert f"      {line}" in workflow  # nosec B101
+    for line in EXPECTED_AGENT_INPUT_LINES:
+        assert f"      {line}" in workflow  # nosec B101
 
 
-def test_local_actions_participate_in_ci_change_detection_and_pin_checks() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
+def test_build_workflow_watches_expected_paths() -> None:
+    workflow = _workflow()
 
-    assert "- .github/actions/**" in workflow  # nosec B101
-    assert ".github/actions/**|.github/workflows/*)" in workflow  # nosec B101
-    assert (
-        'pathlib.Path(".github/actions").glob("*/action.yml")' in workflow
-    )  # nosec B101
+    for path in EXPECTED_WATCHED_PATHS:
+        assert f'      - "{path}"' in workflow  # nosec B101
 
 
-def test_dockerhub_publish_uses_variable_with_secret_fallback() -> None:
-    workflow = BUILD_WORKFLOW.read_text()
+def test_build_workflow_passes_template_and_catalog_assets() -> None:
+    workflow = _workflow()
 
-    assert (  # nosec B101
-        "DOCKERHUB_IMAGE_NAME: ${{ vars.DOCKERHUB_IMAGE_NAME }}" in workflow
-    )
-    assert (  # nosec B101
-        "DOCKERHUB_IMAGE_NAME_SECRET: ${{ secrets.DOCKERHUB_IMAGE_NAME }}" in workflow
-    )
-    assert (  # nosec B101
-        'resolved_image_name="${DOCKERHUB_IMAGE_NAME:-${DOCKERHUB_IMAGE_NAME_SECRET}}"'
-        in workflow
-    )
+    for path in EXPECTED_XML_PATHS:
+        assert path in workflow  # nosec B101
+    for path in EXPECTED_EXTRA_PUBLISH_PATHS:
+        assert path in workflow  # nosec B101
+    for asset in EXPECTED_CATALOG_ASSETS:
+        assert asset in workflow  # nosec B101
 
 
-def test_workflows_use_org_allowed_create_pull_request_pin() -> None:
-    workflow_paths = [BUILD_WORKFLOW, *Path(".github/workflows").glob("release*.yml")]
-    assert RELEASE_WORKFLOW in workflow_paths  # nosec B101
+def test_local_pytest_action_is_centralized_in_aio_fleet() -> None:
+    assert not Path(".github/actions/run-pytest/action.yml").exists()  # nosec B101
+
+
+def test_release_and_upstream_workflows_use_pinned_aio_fleet_reusable_workflows() -> (
+    None
+):
+    workflow_paths = [
+        Path(".github/workflows/check-upstream.yml"),
+        Path(".github/workflows/release.yml"),
+        Path(".github/workflows/publish-release.yml"),
+    ]
+    for optional_path in [
+        Path(".github/workflows/release-agent.yml"),
+        Path(".github/workflows/publish-release-agent.yml"),
+    ]:
+        if optional_path.exists():
+            workflow_paths.append(optional_path)
 
     for workflow_path in workflow_paths:
         workflow = workflow_path.read_text()
-
-        if "peter-evans/create-pull-request@" not in workflow:
-            continue
-        assert ALLOWED_CREATE_PULL_REQUEST_REF in workflow  # nosec B101
-        assert "peter-evans/create-pull-request@5f6978" not in workflow  # nosec B101
+        assert "uses: JSONbored/aio-fleet/.github/workflows/" in workflow  # nosec B101
+        assert f"@{REUSABLE_REF}" in workflow  # nosec B101
+        assert "@main" not in workflow  # nosec B101
+        assert "peter-evans/create-pull-request@" not in workflow  # nosec B101
