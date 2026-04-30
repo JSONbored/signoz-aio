@@ -1,29 +1,32 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
 ## [0.150.1-agent.1](https://github.com/JSONbored/signoz-aio/releases/tag/0.150.1-agent.1) - 2026-04-28
+
 ### CI
+
 - Sync bundled images from SigNoz compose (#31) by @JSONbored in [#31](https://github.com/JSONbored/signoz-aio/pull/31)
 
-
 ### Dependency Updates
+
 - Update otel/opentelemetry-collector-contrib docker tag to v0.150.1 (#38) by @renovate[bot] in [#38](https://github.com/JSONbored/signoz-aio/pull/38)
 
-
 ### Features
+
 - Standardize package tags and add release automation (#18) by @JSONbored in [#18](https://github.com/JSONbored/signoz-aio/pull/18)
 - Rebaseline the AIO template and runtime (#27) by @JSONbored in [#27](https://github.com/JSONbored/signoz-aio/pull/27)
 - Add signoz collector companion (#37) by @JSONbored in [#37](https://github.com/JSONbored/signoz-aio/pull/37)
 
-
 ### Fixes
+
 - Skip no-op release drafts by @JSONbored in [#21](https://github.com/JSONbored/signoz-aio/pull/21)
 - Make releases manual and gate heavy workflows by @JSONbored in [#24](https://github.com/JSONbored/signoz-aio/pull/24)
 - Harden publish and changelog range (#26) by @JSONbored in [#26](https://github.com/JSONbored/signoz-aio/pull/26)
 - Require explicit host agent mounts by @JSONbored in [#34](https://github.com/JSONbored/signoz-aio/pull/34)
 
-
 ### Other Changes
+
 - Initial commit by @JSONbored
 - Codex/bootstrap signoz aio (#2) by @JSONbored in [#2](https://github.com/JSONbored/signoz-aio/pull/2)
 - Codex/bootstrap signoz aio (#3) by @JSONbored in [#3](https://github.com/JSONbored/signoz-aio/pull/3)
@@ -40,9 +43,8 @@ All notable changes to this project will be documented in this file.
 - Fix Signoz template sync defaults by @JSONbored in [#16](https://github.com/JSONbored/signoz-aio/pull/16)
 - Fix awesome-unraid sync for protected main by @JSONbored in [#17](https://github.com/JSONbored/signoz-aio/pull/17)
 
-
-
 ### New Contributors
+
 - @renovate[bot] made their first contribution in [#38](https://github.com/JSONbored/signoz-aio/pull/38)
 - @JSONbored made their first contribution in [#37](https://github.com/JSONbored/signoz-aio/pull/37)
 - @github-actions[bot] made their first contribution in [#35](https://github.com/JSONbored/signoz-aio/pull/35)
