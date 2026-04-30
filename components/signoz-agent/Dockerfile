@@ -22,9 +22,9 @@ LABEL org.opencontainers.image.title="signoz-agent" \
       io.jsonbored.wrapper.type="unraid-agent"
 
 RUN apk add --no-cache \
-    bash=5.2.37-r0 \
+    bash=5.3.3-r1 \
     ca-certificates=20260413-r0 \
-    curl=8.14.1-r2 && \
+    curl=8.17.0-r1 && \
     addgroup -S signoz-agent && \
     adduser -S -G signoz-agent -h /appdata signoz-agent && \
     mkdir -p /appdata /opt/signoz-agent && \
