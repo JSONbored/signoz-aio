@@ -20,5 +20,5 @@ Before enabling automation for this repo:
 
 - run `STRICT_PLACEHOLDERS=true bash scripts/validate-derived-repo.sh .`
 - set required Actions variables and `SYNC_TOKEN`
-- confirm first GHCR publish and XML sync behavior
+- confirm first Docker Hub publish and XML sync behavior
 - validate real-world Unraid install behavior

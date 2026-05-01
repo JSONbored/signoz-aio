@@ -41,8 +41,8 @@ This repo provides two Unraid templates:
 
 ## Quick install notes
 
-- Image: `ghcr.io/jsonbored/signoz-aio:latest`
-- Companion agent image: `ghcr.io/jsonbored/signoz-agent:latest`
+- Image: `jsonbored/signoz-aio:latest`
+- Companion agent image: `jsonbored/signoz-agent:latest`
 - Default WebUI: `http://[UNRAID-IP]:8080`
 - OTLP gRPC: `4317`
 - OTLP HTTP: `4318`
