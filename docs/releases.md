@@ -20,10 +20,10 @@ Every `main` build publishes changed component images:
 - the exact release package tag when the current commit is the release target
 - `sha-<commit>`
 
-Images publish independently:
+The CA templates use the Docker Hub image names:
 
-- `ghcr.io/jsonbored/signoz-aio` and `jsonbored/signoz-aio`
-- `ghcr.io/jsonbored/signoz-agent` and `jsonbored/signoz-agent`
+- `jsonbored/signoz-aio`
+- `jsonbored/signoz-agent`
 
 ## Release flow
 

@@ -179,10 +179,8 @@ Every `main` build publishes `latest`, the exact pinned upstream version, an exp
 
 See [docs/releases.md](docs/releases.md) for the release workflow details.
 
-The two images publish independently to GHCR and Docker Hub:
+The CA templates use the Docker Hub image names:
 
-- `ghcr.io/jsonbored/signoz-aio`
-- `ghcr.io/jsonbored/signoz-agent`
 - `jsonbored/signoz-aio`
 - `jsonbored/signoz-agent`
 

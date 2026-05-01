@@ -368,10 +368,10 @@ def test_agent_metadata_contract_is_complete_and_unprivileged() -> None:
 
     assert root.findtext("Name") == "signoz-agent"  # nosec B101
     assert root.findtext("Repository") == (  # nosec B101
-        "ghcr.io/jsonbored/signoz-agent:latest"
+        "jsonbored/signoz-agent:latest"
     )
     assert root.findtext("Registry") == (  # nosec B101
-        "https://ghcr.io/jsonbored/signoz-agent"
+        "https://hub.docker.com/r/jsonbored/signoz-agent"
     )
     assert root.findtext("Project") == (  # nosec B101
         "https://github.com/JSONbored/signoz-aio"
