@@ -1,0 +1,58 @@
+schema_version: 1
+repo: signoz-aio
+github_repo: JSONbored/signoz-aio
+app_slug: signoz-aio
+image:
+  name: jsonbored/signoz-aio
+  cache_scope: signoz-aio-image
+  pytest_tag: signoz-aio:pytest
+  publish_platforms: linux/amd64
+release:
+  name: SigNoz-AIO
+  profile: signoz-suite
+  previous_tag_command: latest-aio-tag
+upstream:
+  name: SigNoz
+  digest_arg: UPSTREAM_SIGNOZ_DIGEST
+  commit_paths:
+  - Dockerfile
+  - components/signoz-agent/Dockerfile
+  components:
+  - signoz-aio
+  - signoz-agent
+template:
+  xml_paths:
+  - signoz-aio.xml
+  - signoz-agent.xml
+  - assets/**
+  generated: false
+catalog:
+  published: true
+  assets:
+  - source: signoz-aio.xml
+    target: signoz-aio.xml
+  - source: signoz-agent.xml
+    target: signoz-agent.xml
+  - source: assets/app-icon.png
+    target: icons/signoz.png
+tests:
+  unit: tests/unit tests/template
+  integration: tests/integration -m integration
+  checkout_submodules: false
+components:
+  aio:
+    xml_paths:
+    - signoz-aio.xml
+  agent:
+    release_name: SigNoz Agent
+    image_name: jsonbored/signoz-agent
+    docker_cache_scope: signoz-agent-image
+    pytest_image_tag: signoz-agent:pytest
+    integration_pytest_args: tests/integration_agent -m integration
+    context: components/signoz-agent
+    dockerfile: components/signoz-agent/Dockerfile
+    upstream_name: OpenTelemetry Collector Contrib
+    image_description: Unraid-friendly SigNoz OpenTelemetry collector companion for
+      remote and local hosts
+    xml_paths:
+    - signoz-agent.xml
