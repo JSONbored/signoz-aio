@@ -27,11 +27,10 @@ The CA templates use the Docker Hub image names:
 
 ## Release flow
 
-1. Trigger **Prepare Release / SigNoz-AIO** or **Prepare Release / SigNoz Agent** from `main`.
-2. The workflow computes the next component-specific version and opens a release PR.
+1. From `aio-fleet`, run `python -m aio_fleet release status --repo signoz-aio` to inspect the next wrapper release.
+2. Run `python -m aio_fleet release prepare --repo signoz-aio` on a release branch, then open a `chore(release): <version>` PR.
 3. Review and merge that PR into `main`.
-4. Trigger the matching **Publish Release / SigNoz-AIO** or **Publish Release / SigNoz Agent** workflow from `main`.
-5. The workflow reads the merged `CHANGELOG.md` entry, creates the Git tag, and publishes the GitHub Release.
+4. Run the central `aio-fleet` control check for the release target commit with publish enabled, and require `aio-fleet / required` to pass.
+5. Run `python -m aio_fleet release publish --repo signoz-aio` from `aio-fleet` to create the GitHub Release.
 
-The publish workflow requires a successful CI run for the release target commit
-before it creates the tag or GitHub Release.
+SigNoz Agent component releases use the same control-plane path; component-specific versioning and image names are declared in `.aio-fleet.yml`.

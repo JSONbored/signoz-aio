@@ -177,7 +177,7 @@ For remote hosts or stricter separation, run `signoz-agent` and point it at the 
 
 Every `main` build publishes `latest`, the exact pinned upstream version, an explicit packaging line tag, and `sha-<commit>`.
 
-See [docs/releases.md](docs/releases.md) for the release workflow details.
+See [docs/releases.md](docs/releases.md) for the central release process details.
 
 The CA templates use the Docker Hub image names:
 
