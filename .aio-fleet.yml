@@ -21,6 +21,32 @@ upstream:
   components:
     - signoz-aio
     - signoz-agent
+  monitor:
+    - component: aio
+      name: SigNoz
+      source: github-tags
+      repo: SigNoz/signoz
+      image: signoz/signoz
+      digest_source: dockerhub
+      dockerfile: Dockerfile
+      version_key: UPSTREAM_SIGNOZ_VERSION
+      digest_key: UPSTREAM_SIGNOZ_DIGEST
+      stable_only: true
+      strategy: pr
+      release_notes_url: https://github.com/SigNoz/signoz/releases
+    - component: agent
+      name: OpenTelemetry Collector Contrib
+      source: github-tags
+      repo: open-telemetry/opentelemetry-collector-releases
+      image: otel/opentelemetry-collector-contrib
+      digest_source: dockerhub
+      dockerfile: components/signoz-agent/Dockerfile
+      version_key: UPSTREAM_OTELCOL_VERSION
+      version_strip_prefix: v
+      digest_key: UPSTREAM_OTELCOL_DIGEST
+      stable_only: true
+      strategy: pr
+      release_notes_url: https://github.com/open-telemetry/opentelemetry-collector-releases/releases
 template:
   xml_paths:
     - signoz-aio.xml
