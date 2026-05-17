@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.title="signoz-agent" \
 RUN apk add --no-cache \
     bash=5.3.3-r1 \
     ca-certificates=20260413-r0 \
-    curl=8.17.0-r1 && \
+    curl=8.19.0-r0 && \
     addgroup -S signoz-agent && \
     adduser -S -G signoz-agent -h /appdata signoz-agent && \
     mkdir -p /appdata /opt/signoz-agent && \
