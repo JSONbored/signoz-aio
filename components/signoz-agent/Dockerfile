@@ -1,8 +1,8 @@
 # checkov:skip=CKV_DOCKER_3: Optional host and Docker collection needs runtime access to mounted host paths.
 ARG ALPINE_VERSION=3.23.4
 ARG ALPINE_DIGEST=sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
-ARG UPSTREAM_OTELCOL_VERSION=0.151.0
-ARG UPSTREAM_OTELCOL_DIGEST=sha256:d57bfe8eee2378f31cb1193239fbcac521d54a5a071fca2bfc106916a32b892d
+ARG UPSTREAM_OTELCOL_VERSION=0.152.0
+ARG UPSTREAM_OTELCOL_DIGEST=sha256:f41d7995565df3733b7568702073a9c490792f9c6ac60684fe6a4da21a313f8d
 
 FROM otel/opentelemetry-collector-contrib:${UPSTREAM_OTELCOL_VERSION}@${UPSTREAM_OTELCOL_DIGEST} AS otelcol
 
@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.title="signoz-agent" \
 RUN apk add --no-cache \
     bash=5.3.3-r1 \
     ca-certificates=20260413-r0 \
-    curl=8.17.0-r1 && \
+    curl=8.19.0-r0 && \
     addgroup -S signoz-agent && \
     adduser -S -G signoz-agent -h /appdata signoz-agent && \
     mkdir -p /appdata /opt/signoz-agent && \
