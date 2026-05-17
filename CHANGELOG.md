@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.124.0-aio.1 - 2026-05-17
+## 0.152.0-agent.1 - 2026-05-17
 
 ### Maintenance
 
