@@ -263,6 +263,7 @@ components:
     image_name: jsonbored/signoz-agent
     docker_cache_scope: signoz-agent-image
     pytest_image_tag: signoz-agent:pytest
+    pytest_build_context: components/signoz-agent
     integration_pytest_args: tests/integration_agent -m integration
     context: components/signoz-agent
     dockerfile: components/signoz-agent/Dockerfile
