@@ -333,6 +333,24 @@ def test_dockerfile_has_runtime_safety_contract() -> None:
     assert "S6_BEHAVIOUR_IF_STAGE2_FAILS=2" in dockerfile  # nosec B101
 
 
+def test_dockerfile_verifies_s6_overlay_archives() -> None:
+    dockerfile = _dockerfile_text()
+    arg_defaults = _arg_defaults()
+
+    for arg in (
+        "S6_OVERLAY_NOARCH_SHA256",
+        "S6_OVERLAY_X86_64_SHA256",
+        "S6_OVERLAY_AARCH64_SHA256",
+    ):
+        assert re.fullmatch(r"[a-f0-9]{64}", arg_defaults.get(arg, ""))  # nosec B101
+
+    assert "sha256sum -c /tmp/s6-overlay-noarch.sha256" in dockerfile  # nosec B101
+    assert "sha256sum -c /tmp/s6-overlay-arch.sha256" in dockerfile  # nosec B101
+    assert "S6_OVERLAY_NOARCH_SHA256" in dockerfile  # nosec B101
+    assert "S6_OVERLAY_X86_64_SHA256" in dockerfile  # nosec B101
+    assert "S6_OVERLAY_AARCH64_SHA256" in dockerfile  # nosec B101
+
+
 def test_optional_host_agent_mounts_are_blank_and_explicit_by_default() -> None:
     configs_by_target = _configs_by_target()
 
