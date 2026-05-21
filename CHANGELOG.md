@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.125.1-aio.1 - 2026-05-21
+
+### Maintenance
+
+- Bump signoz to v0.125.1
+
 ## 0.152.0-agent.1 - 2026-05-17
 
 ### Maintenance
