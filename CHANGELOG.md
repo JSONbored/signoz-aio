@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.152.1-agent.1 - 2026-05-21
+
+### Fixes
+
+- Secure generated collector config permissions
+
+- Verify s6-overlay archives with pinned checksums
+
+- Restore dev dependency manifest for policy tests
+
+### Maintenance
+
+- Reconcile app manifest
+
+- Bump opentelemetry collector contrib to 0.152.1
+
+## v0.125.1-aio.2 - 2026-05-21
+
+### Fixes
+
+- Secure generated collector config permissions
+
+- Verify s6-overlay archives with pinned checksums
+
+- Restore dev dependency manifest for policy tests
+
+### Maintenance
+
+- Reconcile app manifest
+
+- Bump opentelemetry collector contrib to 0.152.1
+
 ## 0.152.0-agent.2 - 2026-05-21
 
 ### Maintenance
