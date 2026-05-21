@@ -232,6 +232,8 @@ elif [[ ${SIGNOZ_AGENT_PROTOCOL} != "grpc" ]]; then
 	fail "SIGNOZ_AGENT_PROTOCOL must be grpc or http/protobuf."
 fi
 
+old_umask="$(umask)"
+umask 077
 {
 	cat <<EOF
 extensions:
@@ -297,6 +299,8 @@ service:
       exporters: [${exporter_name}]
 EOF
 } >"${GENERATED_CONFIG}"
+chmod 600 "${GENERATED_CONFIG}"
+umask "${old_umask}"
 
 {
 	printf 'mode=generated\n'

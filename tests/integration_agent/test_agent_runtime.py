@@ -448,6 +448,18 @@ def test_agent_forwards_otlp_without_host_mounts_and_masks_secret_logs() -> None
             config = read_container_file(
                 agent.name, "/appdata/config/generated-collector.yaml"
             )
+            mode = run_command(
+                [
+                    "docker",
+                    "exec",
+                    agent.name,
+                    "stat",
+                    "-c",
+                    "%a",
+                    "/appdata/config/generated-collector.yaml",
+                ]
+            ).stdout.strip()
+            assert mode == "600"  # nosec B101
             assert "hostmetrics:" not in config  # nosec B101
             assert "docker_stats:" not in config  # nosec B101
             assert "filelog/docker:" not in config  # nosec B101
