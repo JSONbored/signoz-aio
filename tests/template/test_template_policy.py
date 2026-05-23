@@ -116,6 +116,7 @@ def test_unraid_metadata_contract_is_complete_and_unprivileged() -> None:
     for tag in (
         "Name",
         "Repository",
+        "ReadMe",
         "Support",
         "Project",
         "TemplateURL",
@@ -132,6 +133,14 @@ def test_unraid_metadata_contract_is_complete_and_unprivileged() -> None:
     assert (  # nosec B101
         root.findtext("Category") == "Network:Management Tools:Utilities"
     )
+    assert (
+        root.findtext("ReadMe") == "https://github.com/JSONbored/signoz-aio#readme"
+    )  # nosec B101
+    assert [s.text for s in root.findall("Screenshot")] == [  # nosec B101
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/signoz-aio/01-login.png",
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/signoz-aio/02-services.png",
+        "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/screenshots/signoz-aio/03-dashboards.png",
+    ]
     assert root.findtext("DonateText") == (  # nosec B101
         "Support JSONbored on GitHub Sponsors."
     )
@@ -403,12 +412,22 @@ def test_agent_metadata_contract_is_complete_and_unprivileged() -> None:
     assert root.findtext("Icon") == (  # nosec B101
         "https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/icons/signoz.png"
     )
+    assert root.findtext("ReadMe") == (  # nosec B101
+        "https://github.com/JSONbored/signoz-aio#signoz-agent"
+    )
     assert (  # nosec B101
         root.findtext("Category") == "Network:Management Tools:Utilities"
     )
     assert root.findtext("Privileged") == "false"  # nosec B101
 
-    for tag in ("ExtraSearchTerms", "Requires", "Overview", "DonateText", "DonateLink"):
+    for tag in (
+        "ExtraSearchTerms",
+        "ReadMe",
+        "Requires",
+        "Overview",
+        "DonateText",
+        "DonateLink",
+    ):
         value = root.findtext(tag)
         assert value and value.strip(), f"{tag} must be populated"  # nosec B101
 
