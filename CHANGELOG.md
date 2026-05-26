@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.152.1-agent.2 - 2026-05-26
+
+### Documentation
+
+- Add CA readme and screenshots
+
+### Maintenance
+
+- Remove retired test dependency file
+
+## v0.125.1-aio.3 - 2026-05-26
+
+### Documentation
+
+- Add CA readme and screenshots
+
+### Maintenance
+
+- Remove retired test dependency file
+
 ## 0.152.1-agent.1 - 2026-05-21
 
 ### Fixes
