@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.153.0-agent.1 - 2026-05-28
+
+### Maintenance
+
+- Update upstream pins for signoz-aio
+
+## v0.126.0-aio.1 - 2026-05-28
+
+### Maintenance
+
+- Update upstream pins for signoz-aio
+
 ## 0.152.1-agent.2 - 2026-05-26
 
 ### Documentation
