@@ -62,12 +62,19 @@ catalog:
       target: signoz-agent.xml
     - source: assets/app-icon.png
       target: icons/signoz.png
+    - source: screenshots/signoz-aio/01-login.png
+      target: screenshots/signoz-aio/01-login.png
+    - source: screenshots/signoz-aio/02-services.png
+      target: screenshots/signoz-aio/02-services.png
+    - source: screenshots/signoz-aio/03-dashboards.png
+      target: screenshots/signoz-aio/03-dashboards.png
 tests:
   unit: tests/template
   integration: tests/integration -m integration
   checkout_submodules: false
 validation:
   required_text_fields:
+    - ReadMe
     - ExtraSearchTerms
     - Requires
     - DonateText
@@ -268,9 +275,7 @@ components:
     context: components/signoz-agent
     dockerfile: components/signoz-agent/Dockerfile
     upstream_name: OpenTelemetry Collector Contrib
-    image_description:
-      Unraid-friendly SigNoz OpenTelemetry collector companion for
-      remote and local hosts
+    image_description: Unraid-friendly SigNoz OpenTelemetry collector companion for remote and local hosts
     xml_paths:
       - signoz-agent.xml
     upstream_version_key: UPSTREAM_OTELCOL_VERSION
