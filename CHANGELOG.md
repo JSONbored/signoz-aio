@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.127.0-aio.1 - 2026-06-05
+
+### Maintenance
+
+- Refresh fleet manifest contract
+
+- Bump signoz to v0.127.0
+
+### Tests
+
+- Use shared app test helpers
+
 ## v0.126.1-aio.1 - 2026-05-31
 
 ### Maintenance
