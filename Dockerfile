@@ -2,8 +2,8 @@
 # checkov:skip=CKV_DOCKER_7: Upstream images are pinned by immutable digests instead of mutable tags.
 # checkov:skip=CKV_DOCKER_8: s6-overlay needs root to coordinate bundled SigNoz, ClickHouse, ZooKeeper, and collector services.
 
-ARG UPSTREAM_SIGNOZ_VERSION=v0.127.0
-ARG UPSTREAM_SIGNOZ_DIGEST=sha256:e0b9c07ddf119c67e669ed5c7cf55941f2c6ba844868199dc800facd7bf7c0fd
+ARG UPSTREAM_SIGNOZ_VERSION=v0.127.1
+ARG UPSTREAM_SIGNOZ_DIGEST=sha256:77de0af293c030e409147d1fdb71d1499f5ce720cd1eb083880ea1349d8880b4
 ARG UPSTREAM_OTELCOL_VERSION=v0.144.5@sha256:f9bf94d566055d06581f3befbf361cc26d670f31ad00cb31fda2ec380210c5ec
 ARG UPSTREAM_CLICKHOUSE_VERSION=25.5.6@sha256:4536143e22dc9bddb217c7e610f6b7ed5e6efd8fefdbc61acdeadb5d8022213a
 ARG UPSTREAM_ZOOKEEPER_VERSION=3.7.1@sha256:fcc4a3288154ccaa3bdb5ae6dc10180c084d29a8a6a26b62ac8e30a8940dc2e6
