@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.128.0-aio.1 - 2026-06-12
+
+### Maintenance
+
+- Update upstream pins for signoz-aio (#95)
+
 ## v0.127.0-aio.1 - 2026-06-05
 
 ### Maintenance
