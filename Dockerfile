@@ -44,10 +44,10 @@ LABEL org.opencontainers.image.title="signoz-aio" \
       io.jsonbored.upstream.clickhouse.version="${UPSTREAM_CLICKHOUSE_VERSION}" \
       io.jsonbored.upstream.zookeeper.version="${UPSTREAM_ZOOKEEPER_VERSION}"
 
-# trunk-ignore(hadolint/DL3008)
 # Shared, pinned s6-overlay from the fleet aio-base overlay.
 COPY --from=aio-base /aio-overlay/ /
 
+# trunk-ignore(hadolint/DL3008)
 RUN aio-harden pre && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bash \
