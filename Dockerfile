@@ -19,12 +19,17 @@ FROM signoz/zookeeper:${UPSTREAM_ZOOKEEPER_VERSION} AS zookeeper
 
 FROM clickhouse/clickhouse-server:${UPSTREAM_CLICKHOUSE_VERSION}
 
+ARG TARGETARCH
 ARG UPSTREAM_SIGNOZ_VERSION
 ARG UPSTREAM_SIGNOZ_DIGEST
 ARG UPSTREAM_OTELCOL_VERSION
 ARG UPSTREAM_CLICKHOUSE_VERSION
 ARG UPSTREAM_ZOOKEEPER_VERSION
 ARG HISTOGRAM_QUANTILE_VERSION
+ARG S6_OVERLAY_VERSION
+ARG S6_OVERLAY_NOARCH_SHA256
+ARG S6_OVERLAY_X86_64_SHA256
+ARG S6_OVERLAY_AARCH64_SHA256
 
 # trunk-ignore(hadolint/DL3002)
 USER root
@@ -50,6 +55,11 @@ RUN aio-harden pre && \
     curl \
     openssl \
     xz-utils && \
+    case "${TARGETARCH}" in \
+      amd64) histogram_arch="amd64" ;; \
+      arm64) histogram_arch="arm64" ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
     curl -fsSL -o /tmp/histogram-quantile.tar.gz "https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F${HISTOGRAM_QUANTILE_VERSION}/histogram-quantile_linux_${histogram_arch}.tar.gz" && \
     mkdir -p /opt/signoz-aio/bin && \
     tar -C /opt/signoz-aio/bin -xzf /tmp/histogram-quantile.tar.gz && \
