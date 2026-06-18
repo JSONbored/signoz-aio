@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.154.0-agent.1 - 2026-06-18
+
+### Maintenance
+
+- Bump signoz to v0.126.1
+
+- Refresh fleet manifest contract
+
+- Bump signoz to v0.127.0
+
+- Update upstream pins for signoz-aio (#95)
+
+- Bump signoz to v0.129.0
+
+### Refactors
+
+- Migrate to the shared aio-base s6 overlay (#97)
+
+### Tests
+
+- Use shared app test helpers
+
 ## v0.128.0-aio.1 - 2026-06-12
 
 ### Maintenance
