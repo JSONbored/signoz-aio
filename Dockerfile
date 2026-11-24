@@ -62,6 +62,7 @@ RUN aio-harden pre && \
     esac && \
     curl -fsSL -o /tmp/histogram-quantile.tar.gz "https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F${HISTOGRAM_QUANTILE_VERSION}/histogram-quantile_linux_${histogram_arch}.tar.gz" && \
     mkdir -p /opt/signoz-aio/bin && \
+    printf '%s\n' "${UPSTREAM_OTELCOL_VERSION}" > /opt/signoz-aio/collector-image && \
     tar -C /opt/signoz-aio/bin -xzf /tmp/histogram-quantile.tar.gz && \
     chmod +x /opt/signoz-aio/bin/histogram-quantile && \
     mkdir -p /appdata /opt/signoz /opt/signoz-otel-collector /opt/signoz-aio/config/clickhouse && \

@@ -24,7 +24,17 @@ if ! is_true "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}"; then
 		echo "Existing ClickHouse volume detected at /var/lib/clickhouse. Back up and migrate it into /appdata/clickhouse before upgrading. See the README migration instructions." >&2
 		exit 1
 	fi
-	if [[ -s "${SIGNOZ_DIR}/signoz.db" && ! -d "${CLICKHOUSE_DIR}/store" ]]; then
+	if [[ -f "${APPDATA_DIR}/.telemetrystore-migrations-complete" ]]; then
+		# All three migrated databases must still have their catalog and store.
+		# Atomic database metadata is symlinked into store, including after a copy.
+		for database in signoz_logs signoz_metrics signoz_traces; do
+			if [[ ! -d "${CLICKHOUSE_DIR}/metadata/${database}" ]] || ! compgen -G "${CLICKHOUSE_DIR}/metadata/${database}/*.sql" >/dev/null; then
+				echo "Existing SigNoz installation is missing ClickHouse metadata for ${database} in /appdata/clickhouse. Restore the complete previous ClickHouse volume before starting." >&2
+				exit 1
+			fi
+		done
+	elif [[ ! -d "${CLICKHOUSE_DIR}/store" ]] &&
+		[[ -s "${SIGNOZ_SQLSTORE_SQLITE_PATH:-${SIGNOZ_DIR}/signoz.db}" || -d "${ZOOKEEPER_DIR}/data/version-2" ]]; then
 		echo "Existing SigNoz metadata found without its ClickHouse tables in /appdata/clickhouse. Restore the previous ClickHouse volume before starting." >&2
 		exit 1
 	fi
