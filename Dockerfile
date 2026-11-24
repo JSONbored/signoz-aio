@@ -2,10 +2,10 @@
 # checkov:skip=CKV_DOCKER_7: Upstream images are pinned by immutable digests instead of mutable tags.
 # checkov:skip=CKV_DOCKER_8: s6-overlay needs root to coordinate bundled SigNoz, ClickHouse, ZooKeeper, and collector services.
 
-ARG UPSTREAM_SIGNOZ_VERSION=v0.129.0
-ARG UPSTREAM_SIGNOZ_DIGEST=sha256:50447bb4461c075f52b8fe331324db389f7475b0b6abd1f0a4c9ce7ab3967ca8
-ARG UPSTREAM_OTELCOL_VERSION=v0.144.5@sha256:f9bf94d566055d06581f3befbf361cc26d670f31ad00cb31fda2ec380210c5ec
-ARG UPSTREAM_CLICKHOUSE_VERSION=25.5.6@sha256:4536143e22dc9bddb217c7e610f6b7ed5e6efd8fefdbc61acdeadb5d8022213a
+ARG UPSTREAM_SIGNOZ_VERSION=v0.151.0
+ARG UPSTREAM_SIGNOZ_DIGEST=sha256:27cfe2131b3c5f398dcc8b63bb3c76126fd2dc422339b62f3e603b937bdc4140
+ARG UPSTREAM_OTELCOL_VERSION=v0.144.15@sha256:3996e0ffc58bc86d433062a45ef7ff960a4768da0619944f651a17254d634daf
+ARG UPSTREAM_CLICKHOUSE_VERSION=25.12.5@sha256:cacf32d6884291dc2ff5e0156a97f46fc53ff7c929a7906d114e268a929dfd3a
 ARG UPSTREAM_ZOOKEEPER_VERSION=3.7.1@sha256:fcc4a3288154ccaa3bdb5ae6dc10180c084d29a8a6a26b62ac8e30a8940dc2e6
 ARG HISTOGRAM_QUANTILE_VERSION=v0.0.1
 
@@ -62,6 +62,7 @@ RUN aio-harden pre && \
     esac && \
     curl -fsSL -o /tmp/histogram-quantile.tar.gz "https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F${HISTOGRAM_QUANTILE_VERSION}/histogram-quantile_linux_${histogram_arch}.tar.gz" && \
     mkdir -p /opt/signoz-aio/bin && \
+    printf '%s\n' "${UPSTREAM_OTELCOL_VERSION}" > /opt/signoz-aio/collector-image && \
     tar -C /opt/signoz-aio/bin -xzf /tmp/histogram-quantile.tar.gz && \
     chmod +x /opt/signoz-aio/bin/histogram-quantile && \
     mkdir -p /appdata /opt/signoz /opt/signoz-otel-collector /opt/signoz-aio/config/clickhouse && \

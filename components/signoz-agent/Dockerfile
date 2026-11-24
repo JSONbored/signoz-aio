@@ -1,8 +1,8 @@
 # checkov:skip=CKV_DOCKER_3: Optional host and Docker collection needs runtime access to mounted host paths.
-ARG ALPINE_VERSION=3.23.4
-ARG ALPINE_DIGEST=sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
-ARG UPSTREAM_OTELCOL_VERSION=0.154.0
-ARG UPSTREAM_OTELCOL_DIGEST=sha256:b3079f45e19bdb7326bf49cdddce6cf60dfd865138db39f2733ea48ab17bc4cb
+ARG ALPINE_VERSION=3.23.8
+ARG ALPINE_DIGEST=sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
+ARG UPSTREAM_OTELCOL_VERSION=0.165.0
+ARG UPSTREAM_OTELCOL_DIGEST=sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
 
 FROM otel/opentelemetry-collector-contrib:${UPSTREAM_OTELCOL_VERSION}@${UPSTREAM_OTELCOL_DIGEST} AS otelcol
 
@@ -21,10 +21,11 @@ LABEL org.opencontainers.image.title="signoz-agent" \
       io.jsonbored.wrapper.name="signoz-agent" \
       io.jsonbored.wrapper.type="unraid-agent"
 
+# Alpine stable repositories replace older APK revisions with patched builds.
 RUN apk add --no-cache \
-    bash=5.3.3-r1 \
-    ca-certificates=20260413-r0 \
-    curl=8.19.0-r0 && \
+    'bash>=5.3.3-r1' \
+    'ca-certificates>=20261020-r0' \
+    'curl>=8.23.0-r0' && \
     addgroup -S signoz-agent && \
     adduser -S -G signoz-agent -h /appdata signoz-agent && \
     mkdir -p /appdata /opt/signoz-agent && \

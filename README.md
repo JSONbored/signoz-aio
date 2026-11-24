@@ -101,6 +101,21 @@ Inside that mount, the container manages:
 - `/appdata/config`
 - `/appdata/tmp`
 
+### Upgrading an existing internal ClickHouse installation
+
+The June image stored telemetry under `/var/lib/clickhouse`, which Docker can allocate as an anonymous volume even when `/appdata` is bound to Unraid. This also applies when PostgreSQL holds the SigNoz metadata or SQLite uses a custom path. Before replacing the old container, note an identifiable trace, log or metric and its timestamp. Record its mounts and stop it gracefully so ClickHouse and ZooKeeper flush their files. Back up the stopped appdata and ClickHouse volume. Include your configured metadata database in the same recovery point, including external PostgreSQL or a SQLite volume outside appdata.
+
+If the old ClickHouse mount already points to the same host directory as `/appdata/clickhouse`, its data is in place. Otherwise, copy the stopped container's complete ClickHouse directory, preserving ownership, into the **empty** `clickhouse` directory under your appdata bind mount. For the default Unraid paths and container name:
+
+```sh
+docker inspect signoz-aio --format '{{range .Mounts}}{{println .Destination .Source}}{{end}}'
+docker stop -t 90 signoz-aio
+# Complete and verify your stopped-volume backups before copying.
+docker cp -a signoz-aio:/var/lib/clickhouse/. /mnt/user/appdata/signoz-aio/clickhouse/
+```
+
+Use the paths reported for your installation. If the old container was already replaced, recover the previously recorded Docker volume or a verified backup first. The new image reads the copy under appdata. Detach the old separate mount when you create the new container. After starting the new container, query the recorded telemetry in its original time range and confirm that fresh telemetry arrives. Keep the previous image, volume and backups until those checks also pass after recreating the container. To roll back a database upgrade, stop the new container and restore the pre-upgrade appdata, ClickHouse and configured metadata database together with the previous image.
+
 ## Current Status
 
 The single-image runtime is implemented and validated.

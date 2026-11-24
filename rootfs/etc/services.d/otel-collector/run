@@ -57,11 +57,15 @@ export SIGNOZ_CLICKHOUSE_METADATA_DSN="${SIGNOZ_CLICKHOUSE_METADATA_DSN:-${CLICK
 
 wait_for_clickhouse
 
-if [ ! -f "${MIGRATION_MARKER}" ]; then
+collector_image=$(< /opt/signoz-aio/collector-image)
+# An empty marker from an older release only confirms the older schema.
+if [[ ! -f "${MIGRATION_MARKER}" || "$(< "${MIGRATION_MARKER}")" != "${collector_image}" ]] ||
+    ! "${COLLECTOR_BIN}" migrate sync check; then
     "${COLLECTOR_BIN}" migrate bootstrap
     "${COLLECTOR_BIN}" migrate sync up
     "${COLLECTOR_BIN}" migrate async up
-    touch "${MIGRATION_MARKER}"
+    printf '%s\n' "${collector_image}" > "${MIGRATION_MARKER}.tmp"
+    mv "${MIGRATION_MARKER}.tmp" "${MIGRATION_MARKER}"
 fi
 
 wait_for_signoz

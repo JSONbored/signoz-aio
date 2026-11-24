@@ -317,6 +317,7 @@ def container(
     appdata_volume: str,
     *,
     enable_host_agent: bool = False,
+    image: str = IMAGE_TAG,
     env_overrides: dict[str, str] | None = None,
     extra_volumes: list[tuple[str, str, str]] | None = None,
     network: str | None = None,
@@ -360,12 +361,12 @@ def container(
     if env_overrides:
         for key, value in env_overrides.items():
             command.extend(["-e", f"{key}={value}"])
-    command.append(IMAGE_TAG)
+    command.append(image)
     run_command(command)
     try:
         yield SigNozContainer(name, ui_port, grpc_port, http_port)
     finally:
-        run_command(["docker", "rm", "-f", name], check=False)
+        run_command(["docker", "rm", "-fv", name], check=False)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -863,6 +864,19 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
                 minimum=1,
             )
 
+            quantile = run_command(
+                [
+                    "docker",
+                    "exec",
+                    runtime.name,
+                    "clickhouse-client",
+                    "--query",
+                    "SELECT histogramQuantile([1.0, toFloat64('inf')], [1.0, 2.0], 0.95)",
+                ],
+                check=False,
+            )
+            assert quantile.returncode == 0, quantile.stderr  # nosec B101
+            assert float(quantile.stdout.strip()) == 1.0  # nosec B101
             restart_started = time.time()
             run_command(["docker", "restart", runtime.name])
             wait_for_host_http(runtime.name, runtime.ui_port)
@@ -880,6 +894,16 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
             )
             wait_for_clickhouse_count(
                 runtime.name,
+                "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
+                minimum=1,
+            )
+
+        # Recreate with only the appdata mount. A restart would retain any
+        # anonymous Docker volume and mask loss of the original tables.
+        with container(appdata_volume) as replacement:
+            wait_for_host_http(replacement.name, replacement.ui_port)
+            wait_for_clickhouse_count(
+                replacement.name,
                 "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
                 minimum=1,
             )
@@ -981,13 +1005,27 @@ def test_signoz_invite_email_delivery_with_local_smtp_fixture() -> None:
                 ) as runtime:
                     wait_for_host_http(runtime.name, runtime.ui_port)
                     token = wait_for_root_token(runtime.ui_port)
+                    roles = run_command(
+                        [
+                            "curl",
+                            "-fsS",
+                            "-H",
+                            f"Authorization: Bearer {token}",
+                            f"http://127.0.0.1:{runtime.ui_port}/api/v1/roles",
+                        ]
+                    )
+                    viewer_id = next(
+                        role["id"]
+                        for role in json.loads(roles.stdout)["data"]
+                        if role["name"] == "signoz-viewer"
+                    )
                     post_api_json(
                         runtime.ui_port,
-                        "/api/v1/invite",
+                        "/api/v2/users",
                         {
-                            "name": "Invitee",
+                            "displayName": "Invitee",
                             "email": "invitee@example.invalid",
-                            "role": "VIEWER",
+                            "userRoles": [{"id": viewer_id}],
                             "frontendBaseUrl": "http://127.0.0.1:8080",
                         },
                         token=token,
@@ -1267,6 +1305,86 @@ def test_external_postgres_metadata_store_boots() -> None:
                         ).stdout.strip()
                     )
                     assert table_count > 0  # nosec B101
+
+
+def test_upgrade_preserves_june_telemetry_with_external_metadata() -> None:
+    baseline = (
+        "jsonbored/signoz-aio:v0.129.0-aio.1"
+        "@sha256:6d2e16d7475393dc419ff277bc94fee8c413bf705d63840a02e85a9566791907"
+    )
+    env = {
+        "SIGNOZ_SQLSTORE_PROVIDER": "postgres",
+        "SIGNOZ_SQLSTORE_POSTGRES_DSN": (
+            "postgres://signoz:signoz@postgres:5432/signoz?sslmode=disable"
+        ),
+    }
+
+    def verify_batch(name, marker):
+        queries = (
+            f"SELECT count() FROM signoz_logs.logs_v2 WHERE body='{marker}-log-0'",  # nosec B608 - fixed test marker
+            f"SELECT count() FROM signoz_metrics.samples_v4 WHERE metric_name='{marker}_metric'",  # nosec B608
+            f"SELECT count() FROM signoz_traces.signoz_index_v3 WHERE serviceName='{marker}'",  # nosec B608
+        )
+        for query in queries:
+            wait_for_clickhouse_count(name, query)
+
+    with (
+        docker_network("signoz-upgrade") as network,
+        postgres_service(network),
+        docker_volume("signoz-upgrade-appdata") as appdata,
+    ):
+        with container(
+            appdata, image=baseline, network=network, env_overrides=env
+        ) as old:
+            wait_for_host_http(old.name, old.ui_port)
+            wait_for_container_http(old.name, "http://127.0.0.1:13133/")
+            emit_telemetry_batch(old.http_port, "june_upgrade", 0)
+            verify_batch(old.name, "june_upgrade")
+            assert not container_path_exists(
+                old.name, "/appdata/signoz/signoz.db"
+            )  # nosec B101
+            # A directory on its own is not evidence that the old tables were copied.
+            docker_exec(old.name, "mkdir -p /appdata/clickhouse/store")
+            run_command(["docker", "stop", "-t", "90", old.name])
+
+            with container(appdata, network=network, env_overrides=env) as incomplete:
+                output = wait_for_container_exit(incomplete.name)
+                assert (
+                    "Restore the complete previous ClickHouse volume" in output
+                )  # nosec B101
+
+            # Copy the complete stopped volume, retaining ownership and symlinks.
+            run_command(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--volumes-from",
+                    f"{old.name}:ro",
+                    "-v",
+                    f"{appdata}:/restore",
+                    "--entrypoint",
+                    "sh",
+                    IMAGE_TAG,
+                    "-ec",
+                    "rmdir /restore/clickhouse/store && "
+                    "cp -a /var/lib/clickhouse/. /restore/clickhouse/",
+                ]
+            )
+
+        with container(appdata, network=network, env_overrides=env) as upgraded:
+            wait_for_host_http(upgraded.name, upgraded.ui_port)
+            wait_for_container_http(upgraded.name, "http://127.0.0.1:13133/")
+            marker = read_container_file(
+                upgraded.name, "/appdata/.telemetrystore-migrations-complete"
+            )
+            expected = read_container_file(
+                upgraded.name, "/opt/signoz-aio/collector-image"
+            )
+            assert marker == expected  # nosec B101
+            verify_batch(upgraded.name, "june_upgrade")
+            emit_telemetry_batch(upgraded.http_port, "new_upgrade", 0)
+            verify_batch(upgraded.name, "new_upgrade")
 
 
 def test_external_clickhouse_mode_disables_bundled_clickhouse_and_zookeeper() -> None:
