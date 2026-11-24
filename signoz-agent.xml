@@ -26,7 +26,7 @@ Use signoz-agent on remote Unraid servers, separate Docker hosts, or any machine
 [b]Security Note:[/b] Host root, Docker socket, and Docker log mounts are blank by default. Enable only the collection sources you need. Docker socket access can expose Docker control access to this collector container.</Overview>
   <Changes>### 2026-11-24&#xD;
 - Generated from CHANGELOG.md during release preparation. Do not edit manually.&#xD;
-- Update SigNoz with persistent telemetry and working percentile queries (#104)</Changes>
+- Update the agent to OpenTelemetry Collector Contrib 0.165.0 and Alpine 3.23.8 (#104)</Changes>
   <Category>Network:Management Tools:Utilities</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/JSONbored/awesome-unraid/main/signoz-agent.xml</TemplateURL>

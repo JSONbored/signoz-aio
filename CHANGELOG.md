@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixes
 
-- Update SigNoz with persistent telemetry and working percentile queries (#104)
+- Update the agent to OpenTelemetry Collector Contrib 0.165.0 and Alpine 3.23.8 (#104)
 
 ## v0.129.0-aio.1 - 2026-06-18
 
