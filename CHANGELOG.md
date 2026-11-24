@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.151.0-aio.1 - 2026-11-24
+
+### Fixes
+
+- Before replacing a June installation with bundled ClickHouse, stop the old container and back up appdata, its ClickHouse volume, and your configured metadata database. Migrate the complete stopped ClickHouse volume into /appdata/clickhouse using the steps in the repository README.
+- Upgrade SigNoz to v0.151.0 and ClickHouse to 25.12.5, apply collector schema migrations, and restore histogram percentile queries (#104).
+
 ## 0.165.0-agent.1 - 2026-11-24
 
 ### Fixes
