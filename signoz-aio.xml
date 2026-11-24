@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 14311)
-Total output lines: 260
-
 <?xml version="1.0"?>
 <Container version="2">
   <Name>signoz-aio</Name>
@@ -160,7 +157,11 @@ Install it, keep the defaults, and point your OpenTelemetry senders at the publi
   <Config Name="[Collector] Meter Batch Max Size" Target="SIGNOZ_OTEL_COLLECTOR_METER_BATCH_SEND_MAX_SIZE" Default="25000" Mode="" Description="Advanced. OTel collector maximum batch size for SigNoz meter telemetry." Type="Variable" Display="advanced" Required="false" Mask="false">25000</Config>
   <Config Name="[Collector] Meter Batch Timeout" Target="SIGNOZ_OTEL_COLLECTOR_METER_BATCH_TIMEOUT" Default="1s" Mode="" Description="Advanced. OTel collector batch timeout for SigNoz meter telemetry." Type="Variable" Display="advanced" Required="false" Mask="false">1s</Config>
   <Config Name="[Collector] Self Metrics Scrape Interval" Target="SIGNOZ_OTEL_COLLECTOR_SELF_SCRAPE_INTERVAL" Default="60s" Mode="" Description="Advanced. Scrape interval for the collector's own Prometheus metrics." Type="Variable" Display="advanced" Required="false" Mask="false">60s</Config>
-  <Config Name="[Collector] pprof Endpoint" Target="SIGNOZ_OTEL_COLLECTOR_PPROF_END…311 tokens truncated…m API request timeout." Type="Variable" Display="advanced" Required="false" Mask="false">600s</Config>
+  <Config Name="[Collector] pprof Endpoint" Target="SIGNOZ_OTEL_COLLECTOR_PPROF_ENDPOINT" Default="0.0.0.0:1777" Mode="" Description="Advanced. Internal collector pprof endpoint. This port is not published by the Unraid template." Type="Variable" Display="advanced" Required="false" Mask="false">0.0.0.0:1777</Config>
+  <Config Name="[SigNoz] Analytics Enabled" Target="SIGNOZ_ANALYTICS_ENABLED" Default="false|true" Mode="" Description="Advanced. Enables upstream Segment analytics if a Segment key is configured. Leave false for homelab deployments." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="[SigNoz] Stats Reporter Enabled" Target="SIGNOZ_STATSREPORTER_ENABLED" Default="false|true" Mode="" Description="Advanced. Privacy default: disabled. Set true only if you want to enable upstream stats reporting internals." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="[SigNoz] API Timeout Default" Target="SIGNOZ_APISERVER_TIMEOUT_DEFAULT" Default="60s" Mode="" Description="Advanced. Default API request timeout." Type="Variable" Display="advanced" Required="false" Mask="false">60s</Config>
+  <Config Name="[SigNoz] API Timeout Max" Target="SIGNOZ_APISERVER_TIMEOUT_MAX" Default="600s" Mode="" Description="Advanced. Maximum API request timeout." Type="Variable" Display="advanced" Required="false" Mask="false">600s</Config>
   <Config Name="[SigNoz] API Timeout Excluded Routes" Target="SIGNOZ_APISERVER_TIMEOUT_EXCLUDED__ROUTES" Default="/api/v1/logs/tail,/api/v3/logs/livetail,/api/v1/export_raw_data" Mode="" Description="Advanced. Comma-separated API routes excluded from request timeout handling." Type="Variable" Display="advanced" Required="false" Mask="false">/api/v1/logs/tail,/api/v3/logs/livetail,/api/v1/export_raw_data</Config>
   <Config Name="[SigNoz] API Logging Excluded Routes" Target="SIGNOZ_APISERVER_LOGGING_EXCLUDED__ROUTES" Default="/api/v1/health,/api/v1/version,/" Mode="" Description="Advanced. Comma-separated API routes excluded from request logging." Type="Variable" Display="advanced" Required="false" Mask="false">/api/v1/health,/api/v1/version,/</Config>
   <Config Name="[SigNoz] Querier Cache TTL" Target="SIGNOZ_QUERIER_CACHE__TTL" Default="168h" Mode="" Description="Advanced. TTL for cached SigNoz query results." Type="Variable" Display="advanced" Required="false" Mask="false">168h</Config>
