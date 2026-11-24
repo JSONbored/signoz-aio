@@ -34,7 +34,7 @@ if ! is_true "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}"; then
 			fi
 		done
 	elif [[ ! -d "${CLICKHOUSE_DIR}/store" ]] &&
-		[[ -s "${SIGNOZ_SQLSTORE_SQLITE_PATH:-${SIGNOZ_DIR}/signoz.db}" || -d "${ZOOKEEPER_DIR}/data/version-2" ]]; then
+		[[ -s ${SIGNOZ_SQLSTORE_SQLITE_PATH:-${SIGNOZ_DIR}/signoz.db} || -d "${ZOOKEEPER_DIR}/data/version-2" ]]; then
 		echo "Existing SigNoz metadata found without its ClickHouse tables in /appdata/clickhouse. Restore the previous ClickHouse volume before starting." >&2
 		exit 1
 	fi
