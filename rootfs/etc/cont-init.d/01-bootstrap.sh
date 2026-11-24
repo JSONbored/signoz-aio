@@ -20,7 +20,7 @@ HOST_AGENT_STATUS_FILE="${CONFIG_DIR}/generated-host-agent.status"
 # Older images wrote ClickHouse tables into Docker's /var/lib/clickhouse
 # volume. Refuse to start a fresh telemetry store over an existing installation.
 if ! is_true "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}"; then
-	if [[ -d /var/lib/clickhouse/store && ! /var/lib/clickhouse -ef "${CLICKHOUSE_DIR}" ]]; then
+	if [[ -d /var/lib/clickhouse/store && ! /var/lib/clickhouse -ef ${CLICKHOUSE_DIR} ]]; then
 		echo "Existing ClickHouse volume detected at /var/lib/clickhouse. Back up and migrate it into /appdata/clickhouse before upgrading. See the README migration instructions." >&2
 		exit 1
 	fi

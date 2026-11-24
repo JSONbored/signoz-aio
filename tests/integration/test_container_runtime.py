@@ -865,7 +865,11 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
 
             quantile = run_command(
                 [
-                    "docker", "exec", runtime.name, "clickhouse-client", "--query",
+                    "docker",
+                    "exec",
+                    runtime.name,
+                    "clickhouse-client",
+                    "--query",
                     "SELECT histogramQuantile([1.0, toFloat64('inf')], [1.0, 2.0], 0.95)",
                 ],
                 check=False,
@@ -1001,11 +1005,17 @@ def test_signoz_invite_email_delivery_with_local_smtp_fixture() -> None:
                     wait_for_host_http(runtime.name, runtime.ui_port)
                     token = wait_for_root_token(runtime.ui_port)
                     roles = run_command(
-                        ["curl", "-fsS", "-H", f"Authorization: Bearer {token}",
-                         f"http://127.0.0.1:{runtime.ui_port}/api/v1/roles"]
+                        [
+                            "curl",
+                            "-fsS",
+                            "-H",
+                            f"Authorization: Bearer {token}",
+                            f"http://127.0.0.1:{runtime.ui_port}/api/v1/roles",
+                        ]
                     )
                     viewer_id = next(
-                        role["id"] for role in json.loads(roles.stdout)["data"]
+                        role["id"]
+                        for role in json.loads(roles.stdout)["data"]
                         if role["name"] == "signoz-viewer"
                     )
                     post_api_json(
