@@ -17,7 +17,7 @@ from tests.helpers import (
     container_path_exists,
     create_docker_volume,
     docker_available,
-    docker_image_exists,
+    ensure_pytest_image,
     read_container_file,
     remove_docker_volume,
     reserve_host_port,
@@ -90,41 +90,16 @@ def capture_backend() -> Iterator[tuple[str, list[dict[str, object]]]]:
         thread.join(timeout=5)
 
 
-def ensure_agent_image() -> None:
-    if os.environ.get("SIGNOZ_AGENT_PYTEST_USE_PREBUILT_IMAGE") == "true":
-        if not docker_image_exists(IMAGE_TAG):
-            raise AssertionError(f"Expected prebuilt agent image {IMAGE_TAG}.")
-        return
-
-    run_command(
-        [
-            "docker",
-            "build",
-            "--platform",
-            "linux/amd64",
-            "-t",
-            IMAGE_TAG,
-            "components/signoz-agent",
-        ]
-    )
-
-
-def ensure_aio_image() -> None:
-    if os.environ.get("AIO_PYTEST_USE_PREBUILT_IMAGE") == "true":
-        if not docker_image_exists(AIO_IMAGE_TAG):
-            raise AssertionError(f"Expected prebuilt AIO image {AIO_IMAGE_TAG}.")
-        return
-
-    run_command(
-        ["docker", "build", "--platform", "linux/amd64", "-t", AIO_IMAGE_TAG, "."]
-    )
-
-
 @pytest.fixture(scope="session", autouse=True)
 def build_image() -> None:
     if not docker_available():
         pytest.skip("Docker is unavailable; agent integration tests require Docker.")
-    ensure_agent_image()
+    ensure_pytest_image(
+        IMAGE_TAG,
+        context="components/signoz-agent",
+        dockerfile="components/signoz-agent/Dockerfile",
+        prebuilt_env="SIGNOZ_AGENT_PYTEST_USE_PREBUILT_IMAGE",
+    )
 
 
 def logs(name: str) -> str:
@@ -208,7 +183,7 @@ class AioBackend:
 
 @contextmanager
 def aio_backend(network: str) -> Iterator[AioBackend]:
-    ensure_aio_image()
+    ensure_pytest_image(AIO_IMAGE_TAG)
     name = f"signoz-aio-agent-backend-{uuid.uuid4().hex[:10]}"
     appdata_volume = create_docker_volume(f"{name}-appdata")
     ui_port = reserve_host_port()

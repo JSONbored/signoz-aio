@@ -21,10 +21,11 @@ LABEL org.opencontainers.image.title="signoz-agent" \
       io.jsonbored.wrapper.name="signoz-agent" \
       io.jsonbored.wrapper.type="unraid-agent"
 
+# Alpine stable repositories replace older APK revisions with patched builds.
 RUN apk add --no-cache \
-    bash=5.3.3-r1 \
-    ca-certificates=20260413-r0 \
-    curl=8.19.0-r0 && \
+    'bash>=5.3.3-r1' \
+    'ca-certificates>=20261020-r0' \
+    'curl>=8.23.0-r0' && \
     addgroup -S signoz-agent && \
     adduser -S -G signoz-agent -h /appdata signoz-agent && \
     mkdir -p /appdata /opt/signoz-agent && \
