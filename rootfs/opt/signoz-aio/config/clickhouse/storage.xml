@@ -1,0 +1,12 @@
+<clickhouse>
+  <path>/appdata/clickhouse/</path>
+  <tmp_path>/appdata/clickhouse/tmp/</tmp_path>
+  <user_files_path>/appdata/clickhouse/user_files/</user_files_path>
+  <format_schema_path>/appdata/clickhouse/format_schemas/</format_schema_path>
+  <custom_cached_disks_base_directory>/appdata/clickhouse/caches/</custom_cached_disks_base_directory>
+  <user_directories>
+    <local_directory>
+      <path>/appdata/clickhouse/access/</path>
+    </local_directory>
+  </user_directories>
+</clickhouse>

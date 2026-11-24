@@ -101,6 +101,20 @@ Inside that mount, the container manages:
 - `/appdata/config`
 - `/appdata/tmp`
 
+### Upgrading an existing internal ClickHouse installation
+
+The June image stored telemetry under `/var/lib/clickhouse`, which Docker can allocate as an anonymous volume even when `/appdata` is bound to Unraid. Before replacing the old container, record its ClickHouse mount and verify a known trace or metric. Back up appdata and the ClickHouse volume independently. Stop the old container so ClickHouse flushes its files.
+
+If the old ClickHouse mount already points to the same host directory as `/appdata/clickhouse`, its data is in place. Otherwise, copy the stopped container's complete ClickHouse directory, preserving ownership, into the **empty** `clickhouse` directory under your appdata bind mount. For the default Unraid paths and container name:
+
+```sh
+docker inspect signoz-aio --format '{{range .Mounts}}{{println .Destination .Source}}{{end}}'
+docker stop signoz-aio
+docker cp -a signoz-aio:/var/lib/clickhouse/. /mnt/user/appdata/signoz-aio/clickhouse/
+```
+
+Use the paths reported for your installation. If the old container was already replaced, recover the previously recorded Docker volume or a verified backup first. The new image reads the copy under appdata. Detach the old separate mount when you create the new container. Keep the previous image, volume and pre-upgrade backups until the old telemetry can be queried after another container replacement. To roll back a database upgrade, restore both the pre-upgrade appdata and ClickHouse backup with the previous image.
+
 ## Current Status
 
 The single-image runtime is implemented and validated.

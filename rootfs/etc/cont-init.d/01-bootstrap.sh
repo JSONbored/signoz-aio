@@ -17,6 +17,19 @@ ENV_FILE="${CONFIG_DIR}/generated.env"
 HOST_AGENT_CONFIG_FILE="${CONFIG_DIR}/generated-host-agent.yaml"
 HOST_AGENT_STATUS_FILE="${CONFIG_DIR}/generated-host-agent.status"
 
+# Older images wrote ClickHouse tables into Docker's /var/lib/clickhouse
+# volume. Refuse to start a fresh telemetry store over an existing installation.
+if ! is_true "${SIGNOZ_USE_EXTERNAL_CLICKHOUSE:-false}"; then
+	if [[ -d /var/lib/clickhouse/store && ! /var/lib/clickhouse -ef "${CLICKHOUSE_DIR}" ]]; then
+		echo "Existing ClickHouse volume detected at /var/lib/clickhouse. Back up and migrate it into /appdata/clickhouse before upgrading. See the README migration instructions." >&2
+		exit 1
+	fi
+	if [[ -s "${SIGNOZ_DIR}/signoz.db" && ! -d "${CLICKHOUSE_DIR}/store" ]]; then
+		echo "Existing SigNoz metadata found without its ClickHouse tables in /appdata/clickhouse. Restore the previous ClickHouse volume before starting." >&2
+		exit 1
+	fi
+fi
+
 mkdir -p "${CONFIG_DIR}" "${CLICKHOUSE_DIR}" "${SIGNOZ_DIR}" "${TMP_DIR}" "${ZOOKEEPER_DIR}" /bitnami /etc/clickhouse-server/config.d /var/log/clickhouse-server
 ln -sfn "${ZOOKEEPER_DIR}" /bitnami/zookeeper
 touch "${ENV_FILE}"
@@ -39,13 +52,15 @@ persist_if_missing "SIGNOZ_TOKENIZER_JWT_SECRET" "${tokenizer_jwt_secret}"
 
 rm -f /etc/clickhouse-server/config.d/signoz-cluster.xml /etc/clickhouse-server/config.d/signoz-custom-function.xml
 cp /opt/signoz-aio/config/clickhouse/cluster.xml /etc/clickhouse-server/config.d/signoz-cluster.xml
-cp /opt/signoz-aio/config/clickhouse/custom-function.xml /etc/clickhouse-server/config.d/signoz-custom-function.xml
+cp /opt/signoz-aio/config/clickhouse/custom-function.xml /etc/clickhouse-server/signoz_function.xml
+cp /opt/signoz-aio/config/clickhouse/storage.xml /etc/clickhouse-server/config.d/signoz-storage.xml
 
 mkdir -p /var/lib/clickhouse/user_scripts
 cp /opt/signoz-aio/bin/histogram-quantile /var/lib/clickhouse/user_scripts/histogramQuantile
 chmod +x /var/lib/clickhouse/user_scripts/histogramQuantile
 
-chown -R clickhouse:clickhouse "${CLICKHOUSE_DIR}" /var/log/clickhouse-server /var/lib/clickhouse/user_scripts
+chown clickhouse:clickhouse "${CLICKHOUSE_DIR}"
+chown -R clickhouse:clickhouse /var/log/clickhouse-server /var/lib/clickhouse/user_scripts
 chmod 755 "${APPDATA_DIR}" "${CONFIG_DIR}" "${SIGNOZ_DIR}" "${TMP_DIR}"
 
 generate_host_agent_config() {

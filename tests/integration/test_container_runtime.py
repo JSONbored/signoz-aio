@@ -863,6 +863,10 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
                 minimum=1,
             )
 
+            quantile_ok = clickhouse_query(
+                runtime.name, "SELECT isFinite(histogramQuantile([1.0, 2.0], [1.0, 2.0], 0.95))"
+            )
+            assert quantile_ok == "1"  # nosec B101
             restart_started = time.time()
             run_command(["docker", "restart", runtime.name])
             wait_for_host_http(runtime.name, runtime.ui_port)
@@ -880,6 +884,16 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
             )
             wait_for_clickhouse_count(
                 runtime.name,
+                "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
+                minimum=1,
+            )
+
+        # Recreate with only the appdata mount. A restart would retain any
+        # anonymous Docker volume and mask loss of the original tables.
+        with container(appdata_volume) as replacement:
+            wait_for_host_http(replacement.name, replacement.ui_port)
+            wait_for_clickhouse_count(
+                replacement.name,
                 "SELECT count() FROM signoz_logs.logs_v2 WHERE body='signoz-aio-test-log'",
                 minimum=1,
             )
@@ -981,13 +995,21 @@ def test_signoz_invite_email_delivery_with_local_smtp_fixture() -> None:
                 ) as runtime:
                     wait_for_host_http(runtime.name, runtime.ui_port)
                     token = wait_for_root_token(runtime.ui_port)
+                    roles = run_command(
+                        ["curl", "-fsS", "-H", f"Authorization: Bearer {token}",
+                         f"http://127.0.0.1:{runtime.ui_port}/api/v1/roles"]
+                    )
+                    viewer_id = next(
+                        role["id"] for role in json.loads(roles.stdout)["data"]
+                        if role["name"] == "signoz-viewer"
+                    )
                     post_api_json(
                         runtime.ui_port,
-                        "/api/v1/invite",
+                        "/api/v2/users",
                         {
-                            "name": "Invitee",
+                            "displayName": "Invitee",
                             "email": "invitee@example.invalid",
-                            "role": "VIEWER",
+                            "userRoles": [{"id": viewer_id}],
                             "frontendBaseUrl": "http://127.0.0.1:8080",
                         },
                         token=token,
