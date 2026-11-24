@@ -55,12 +55,8 @@ cp /opt/signoz-aio/config/clickhouse/cluster.xml /etc/clickhouse-server/config.d
 cp /opt/signoz-aio/config/clickhouse/custom-function.xml /etc/clickhouse-server/signoz_function.xml
 cp /opt/signoz-aio/config/clickhouse/storage.xml /etc/clickhouse-server/config.d/signoz-storage.xml
 
-mkdir -p /var/lib/clickhouse/user_scripts
-cp /opt/signoz-aio/bin/histogram-quantile /var/lib/clickhouse/user_scripts/histogramQuantile
-chmod +x /var/lib/clickhouse/user_scripts/histogramQuantile
-
 chown clickhouse:clickhouse "${CLICKHOUSE_DIR}"
-chown -R clickhouse:clickhouse /var/log/clickhouse-server /var/lib/clickhouse/user_scripts
+chown -R clickhouse:clickhouse /var/log/clickhouse-server
 chmod 755 "${APPDATA_DIR}" "${CONFIG_DIR}" "${SIGNOZ_DIR}" "${TMP_DIR}"
 
 generate_host_agent_config() {

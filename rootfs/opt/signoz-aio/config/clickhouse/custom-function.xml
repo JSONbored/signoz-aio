@@ -16,6 +16,6 @@
       <name>quantile</name>
     </argument>
     <format>CSV</format>
-    <command>./histogramQuantile</command>
+    <command>histogram-quantile</command>
   </function>
 </functions>

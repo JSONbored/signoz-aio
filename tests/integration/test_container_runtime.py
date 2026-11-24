@@ -863,10 +863,15 @@ def test_happy_path_boot_ingests_persists_and_restarts() -> None:
                 minimum=1,
             )
 
-            quantile_ok = clickhouse_query(
-                runtime.name, "SELECT isFinite(histogramQuantile([1.0, 2.0], [1.0, 2.0], 0.95))"
+            quantile = run_command(
+                [
+                    "docker", "exec", runtime.name, "clickhouse-client", "--query",
+                    "SELECT histogramQuantile([1.0, toFloat64('inf')], [1.0, 2.0], 0.95)",
+                ],
+                check=False,
             )
-            assert quantile_ok == "1"  # nosec B101
+            assert quantile.returncode == 0, quantile.stderr  # nosec B101
+            assert float(quantile.stdout.strip()) == 1.0  # nosec B101
             restart_started = time.time()
             run_command(["docker", "restart", runtime.name])
             wait_for_host_http(runtime.name, runtime.ui_port)
