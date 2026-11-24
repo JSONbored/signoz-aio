@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.151.0-aio.1 - 2026-11-24
+
+### Fixes
+
+- Update SigNoz with persistent telemetry and working percentile queries (#104)
+
 ## 0.165.0-agent.1 - 2026-11-24
 
 ### Fixes
